@@ -123,7 +123,6 @@ La poda alfa-beta evita analizar ramas que ya no pueden cambiar la decisión fin
 
 La poda no cambia el resultado de minimax. Solamente permite obtenerlo más rápido.
 
-En nuestro código no usamos `break`, `continue` ni `pass`. La poda se controla mediante las condiciones del ciclo.
 
 ---
 
