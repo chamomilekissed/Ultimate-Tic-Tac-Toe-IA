@@ -1,5 +1,7 @@
 # Ultimate-Tic-Tac-Toe-IA
 
+HEURÍSTICAS QUE PODEMOS USAR
+
 | Heurística                          | Qué evalúa                                                                                 | Ventajas                                       | Desventajas                                                      |
 | ----------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------- | ---------------------------------------------------------------- |
 | 1. Material posicional              | Mini-tableros ganados, centros y esquinas.                                                 | Muy rápida y fácil de explicar.                | No detecta amenazas ni considera el tablero de destino.          |
