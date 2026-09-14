@@ -214,37 +214,6 @@ Desventajas:
 
 ---
 
-## ¿Cómo funciona nuestra heurística?
-
-Usamos la siguiente idea:
-
-```text
-heurística =
-    líneas del mega-tablero
-    + mini-tableros ganados
-    + líneas de los mini-tableros
-    + posiciones ocupadas
-    + situación del tablero obligatorio
-```
-
-Un resultado positivo favorece al sistema.
-
-Un resultado negativo favorece al jugador externo.
-
-Damos un peso mayor a:
-
-1. Ganar la partida.
-2. Evitar que el rival gane.
-3. Tener dos mini-tableros alineados.
-4. Bloquear dos mini-tableros del rival.
-5. Ganar un mini-tablero.
-6. Completar o bloquear líneas locales.
-7. Controlar centros y esquinas.
-
-La defensa tiene un peso ligeramente mayor que el ataque porque ignorar una amenaza inmediata puede hacer que el sistema pierda el mini-tablero o incluso la partida.
-
----
-
 ## Organización del código
 
 | Función | Propósito |
