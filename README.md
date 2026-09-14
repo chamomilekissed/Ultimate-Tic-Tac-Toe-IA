@@ -1,265 +1,215 @@
-# Ultimate-Tic-Tac-Toe-IA
+# Gato de Gatos — Ultimate Tic-Tac-Toe con IA
 
-# Gato de Gatos con Minimax
-
-## Descripción del proyecto
-
-En este proyecto desarrollamos un programa capaz de jugar Gato de Gatos contra una persona.
-
-El sistema utiliza el algoritmo minimax para analizar las posibles jugadas. Como no es posible revisar todas las partidas completas en menos de 30 segundos, también usamos una función heurística. Esta función le permite al programa estimar qué tan conveniente es una posición sin tener que llegar hasta el final de la partida.
-
-El programa fue desarrollado en Python y se puede ejecutar directamente en Spyder. No necesita instalar ninguna biblioteca adicional.
+Implementación en Python de Ultimate Tic-Tac-Toe (Gato de Gatos) con un jugador
+artificial basado en Minimax + Poda Alfa-Beta. Soporta humano vs humano, humano
+vs IA e IA vs IA.
 
 ---
 
-## ¿Cómo se juega?
+## Estructura del proyecto
 
-El tablero está formado por nueve mini-tableros de gato. Cada mini-tablero también tiene nueve casillas.
-
-Los mini-tableros se identifican así:
-
-```text
-A B C
-D E F
-G H I
+```
+Gato/
+├── config.py         Constantes globales: símbolos, tamaños, pesos del
+│                      evaluador, presupuestos de tiempo, líneas de victoria
+├── tablero.py         Clase Tablero: estado del juego y reglas básicas
+├── movimientos.py     Generación de movimientos legales
+├── evaluador.py        Función heurística multi-componente
+├── minimax.py         Minimax + Alpha-Beta + Iterative Deepening
+├── interfaz.py        Entrada/salida de terminal (formato "Gc")
+├── main.py            Loop principal — los 3 modos de juego
+├── tests_stub.py       Suite de pruebas (pytest)
+└── Case Study/         Partidas jugadas, análisis de bugs y casos de regresión
 ```
 
-Las casillas de cada mini-tablero se identifican así:
-
-```text
-a b c
-d e f
-g h i
-```
-
-Para escribir un movimiento se usan dos letras:
-
-- La primera indica el mini-tablero.
-- La segunda indica la casilla dentro de ese mini-tablero.
-
-Por ejemplo:
-
-```text
-Gc
-```
-
-significa que se eligió la casilla superior derecha del mini-tablero inferior izquierdo.
-
-La casilla elegida también determina el mini-tablero donde deberá jugar el oponente. Si ese mini-tablero ya fue ganado o terminó empatado, el siguiente jugador puede elegir cualquier mini-tablero que siga abierto.
+Cada módulo se apoya únicamente en los de arriba en esta lista (`tablero.py`
+no depende de nadie; `main.py` depende de todos). `config.py` es la única
+fuente de constantes — ningún otro archivo hardcodea pesos, símbolos ni tamaños.
 
 ---
 
-## ¿Cómo representamos el juego?
+## Representación del estado (`tablero.py`)
 
-Representamos el tablero mediante una lista que contiene nueve listas pequeñas.
+La clase `Tablero` guarda:
 
-```python
-tablero[mini_tablero][casilla]
+- `mini_tableros`: lista de 9 mini-tableros 3×3 (`mini_tableros[fila_meta * 3 + col_meta]`),
+  cada casilla es `'X'`, `'O'` o `None`.
+- `meta_tablero`: matriz 3×3 con el resultado de cada mini-tablero — `'X'`,
+  `'O'`, `'EMPATE'` o `None` (todavía en juego).
+- `historial`: pila de movimientos aplicados, usada por `deshacer_movimiento()`
+  para que minimax explore variaciones sin copiar el tablero en cada nodo.
+
+Métodos clave: `aplicar_movimiento`, `deshacer_movimiento`, `obtener_ganador_mini`,
+`detectar_ganador_meta`, `verificar_empate`, `es_mini_tablero_disponible`,
+`copiar()` (copia profunda, sin historial) y `get_estado_hash()` (hash rápido
+del estado completo, usado como clave de la Transposition Table).
+
+### Convención de coordenadas
+
+```
+Meta-tablero (campos):     Dentro de cada mini-tablero (posiciones):
+  A | B | C                  a | b | c
+  D | E | F                  d | e | f
+  G | H | I                  g | h | i
 ```
 
-Por ejemplo:
-
-```python
-tablero[6][2]
-```
-
-representa el movimiento `Gc`.
-
-También usamos un macro-tablero para guardar el resultado de cada mini-tablero:
-
-- `""` significa que todavía está abierto.
-- `"X"` significa que lo ganó X.
-- `"O"` significa que lo ganó O.
-- `"="` significa que terminó empatado.
-
-Finalmente, usamos la variable `destino`:
-
-- Si contiene un número entre 0 y 8, indica el mini-tablero obligatorio.
-- Si contiene `None`, el jugador puede elegir cualquier mini-tablero abierto.
+Un movimiento se escribe como dos letras, `Campo+Posición` — por ejemplo
+`Gc` = jugar en el mini-tablero G, casilla c. La posición jugada determina el
+mini-tablero **obligatorio** para el rival en su siguiente turno (si ese
+mini-tablero ya está decidido, el rival puede jugar en cualquier mini-tablero
+disponible).
 
 ---
 
-## ¿Cómo toma decisiones el programa?
+## Generación de movimientos (`movimientos.py`)
 
-El programa utiliza minimax.
+`movimientos_validos(tablero, tablero_destino)` implementa la regla central
+del juego:
 
-La idea es la siguiente:
-
-1. El sistema prueba una jugada posible.
-2. Después supone que el rival responderá con su mejor jugada.
-3. Luego vuelve a buscar la mejor respuesta del sistema.
-4. Este proceso se repite hasta alcanzar la profundidad permitida.
-5. Los valores obtenidos se regresan hacia arriba para seleccionar el mejor movimiento.
-
-El sistema es el jugador maximizador porque busca el puntaje más grande. El jugador externo es el minimizador porque intenta reducir el puntaje del sistema.
-
-Una victoria del sistema recibe un valor muy grande y una victoria del rival recibe un valor muy negativo.
-
-También tomamos en cuenta la profundidad:
-
-```python
-VALOR_VICTORIA - nivel
-```
-
-Esto hace que el sistema prefiera ganar lo más rápido posible.
-
-En una derrota usamos:
-
-```python
--VALOR_VICTORIA + nivel
-```
-
-De esta manera, si no puede evitar perder, intenta retrasar la derrota.
+- `tablero_destino is None` (primer turno) o apunta a un mini-tablero ya
+  decidido → el jugador puede elegir cualquier mini-tablero disponible.
+- En cualquier otro caso → solo puede jugar en ese mini-tablero.
 
 ---
 
-## Poda alfa-beta
+## Función heurística (`evaluador.py`)
 
-La poda alfa-beta evita analizar ramas que ya no pueden cambiar la decisión final.
+`evaluar_posicion(tablero, es_maximizando, tablero_destino=None, debug=False)`
+retorna una puntuación en perspectiva absoluta de X (positivo = favorece a X,
+negativo = favorece a O), en el rango `[VALOR_PERDEDOR, VALOR_GANADOR]`
+(±10000). Primero revisa los casos terminales (`detectar_ganador_meta`,
+`verificar_empate`); si el juego sigue, suma 6 componentes ponderados:
 
-- `alfa` representa el mejor resultado encontrado para el sistema.
-- `beta` representa el mejor resultado encontrado para el rival.
-- Cuando `alfa` es mayor o igual que `beta`, ya no es necesario revisar las demás jugadas de esa rama.
+| Componente | Peso (`config.py`) | Qué mide |
+|---|---|---|
+| `evaluar_progreso_meta` | `PESO_PROGRESO_META_TABLERO` (10) | Amenazas de 2-en-línea a nivel **meta**-tablero |
+| `evaluar_bifurcaciones` | `PESO_AMENAZAS_BIFURCACIONES` (7) | Mini-tableros con 2+ amenazas simultáneas (fork) |
+| `evaluar_defensa` | `PESO_DEFENSA_CRITICA` (6) | Amenazas totales dispersas en todos los mini-tableros |
+| `evaluar_control_posiciones` | `PESO_POSICIONES_CLAVE` (7) | Campos ya ganados, ponderados por `IMPORTANCIA_CAMPO` (centro > esquina > borde) |
+| `evaluar_mini_tableros` | `PESO_CONTROL_LOCAL` (3) | Posesión local (casillas + amenazas) de cada mini-tablero |
+| `evaluar_amenaza_destino` | `PESO_AMENAZA_DESTINO` (8) | ¿El mini-tablero al que se manda al rival es un regalo o una trampa? |
 
-La poda no cambia el resultado de minimax. Solamente permite obtenerlo más rápido.
+Con `debug=True` imprime el desglose completo (crudo y ponderado) de cada
+componente — pensado para diagnóstico manual, **no** se usa dentro de la
+búsqueda (inundaría la terminal y la haría mucho más lenta).
 
+### Un bug real que encontramos y corregimos
 
----
-
-## Profundización iterativa
-
-En lugar de comenzar directamente con una búsqueda muy profunda, hacemos varias búsquedas:
-
-```text
-Profundidad 1
-Profundidad 2
-Profundidad 3
-...
-```
-
-Cada búsqueda terminada mejora la decisión anterior.
-
-Si se acaba el tiempo durante una profundidad, conservamos el mejor movimiento de la última búsqueda que sí terminó. Por eso el programa siempre tiene una jugada legal disponible.
-
-El tiempo utilizado depende de la etapa de la partida:
-
-- Apertura: máximo 4 segundos.
-- Parte media: máximo 10 segundos.
-- Parte final: máximo 25 segundos.
-
-Todos los tiempos están por debajo del límite de 30 segundos.
+Durante el análisis de una partida (ver `Case Study/Juego 1.md`), descubrimos
+que `evaluar_bifurcaciones`, `evaluar_defensa` y `evaluar_mini_tableros`
+excluían los mini-tableros ya decididos. Como resultado, **ganar** un
+mini-tablero hacía que su señal de dominio local desapareciera de golpe, sin
+compensación suficiente — la heurística literalmente puntuaba peor completar
+una victoria que dejarla a medias. El fix (evaluar siempre los 9
+mini-tableros) y el caso de regresión que lo verifica están documentados en
+`Case Study/`.
 
 ---
 
-## Funciones heurísticas que consideramos
+## Búsqueda: Minimax + Alpha-Beta (`minimax.py`)
 
-### Opción 1: cantidad y posición de mini-tableros ganados
+### Algoritmo base
 
-Esta opción da puntos por cada mini-tablero ganado. También puede dar más valor al centro y a las esquinas.
+`minimax(tablero, profundidad, alfa, beta, es_maximizando, tablero_destino, cache, nivel=0)`
+es la búsqueda recursiva estándar: X maximiza, O minimiza, con poda
+alfa-beta (`if beta <= alfa: break`). Como la búsqueda muta el tablero real
+directamente (`aplicar_movimiento` / `deshacer_movimiento`) para no copiar
+en cada nodo, cada llamada recursiva está envuelta en `try/finally` — así el
+tablero siempre queda restaurado aunque la búsqueda se aborte a mitad de
+camino (ver "Control de tiempo" abajo).
 
-Ventajas:
+### Optimizaciones
 
-- Es rápida.
-- Es sencilla de programar.
-- Es fácil de explicar.
+- **Valores terminales ajustados por profundidad.** Una victoria vale
+  `VALOR_GANADOR - nivel` y una derrota `VALOR_PERDEDOR + nivel`, donde
+  `nivel` es la distancia (en jugadas) desde la raíz de la búsqueda. Esto
+  hace que la IA prefiera ganar en el menor número de jugadas posible, y que
+  retrase una derrota inevitable en vez de acelerarla.
+- **Transposition Table** (`TranspositionTable`, clave = `get_estado_hash()`
+  + profundidad + destino + turno): cachea posiciones repetidas para no
+  recalcularlas. Tiene un límite de tamaño (`LIMITE_ESTADOS_MEMORIA`) para no
+  crecer sin control. **Se reinicia en cada profundidad** del iterative
+  deepening — no se reutiliza entre pasadas, porque el valor terminal ahora
+  depende de `nivel`, que no es el mismo en una pasada con
+  `profundidad_inicial=3` que en una con `profundidad_inicial=7` (ver
+  docstring de `minimax()` para el detalle).
+- **Move ordering.** `ordenar_movimientos()` prueba primero: (0) la jugada
+  preferida de la profundidad anterior del iterative deepening ("PV move
+  ordering" — suele podar mucho más), (1) jugadas que ganan un mini-tablero
+  de inmediato, (2) jugadas que bloquean una victoria del rival, (3) el
+  resto, ordenado por `IMPORTANCIA_CAMPO`.
+- **Iterative Deepening con presupuesto adaptativo.** `mejor_movimiento()`
+  busca profundidad 1, 2, 3... conservando el mejor movimiento de la última
+  profundidad *completa*. El presupuesto de tiempo se ajusta según cuántas
+  casillas quedan disponibles (`_calcular_presupuesto`): poco en la apertura
+  (mucho ramaje, no vale la pena), más cerca del final (decisiones más
+  críticas) — siempre acotado por el `tiempo_limite` recibido, nunca lo
+  excede. Se detiene antes si ya se probó una victoria o derrota forzada.
+- **Control de tiempo con corte duro.** Además del chequeo entre
+  profundidades, hay un deadline absoluto revisado en cada nodo; si se
+  cumple, `minimax()` lanza `TiempoAgotado` y la búsqueda se aborta
+  limpiamente (gracias al `try/finally` mencionado arriba) sin dejar
+  movimientos "fantasma" aplicados al tablero real.
+- **Estadísticas.** Cada llamada a `mejor_movimiento()` actualiza
+  `minimax.ultimas_estadisticas` (nodos visitados, profundidad alcanzada,
+  valor final, segundos usados, presupuesto) — no forma parte del valor de
+  retorno para no romper a quienes solo esperan la jugada; `main.py` las lee
+  para mostrarlas después de cada jugada de la IA.
 
-Desventajas:
-
-- No detecta amenazas.
-- No analiza líneas incompletas.
-- No considera dónde jugará el rival.
-
-### Opción 2: líneas posibles
-
-Esta opción cuenta las filas, columnas y diagonales que todavía puede completar cada jugador.
-
-Una línea con dos marcas recibe más puntos que una línea con una sola marca.
-
-Ventajas:
-
-- Detecta amenazas y oportunidades.
-- Ayuda a atacar y defender.
-- Considera tanto los mini-tableros como el mega-tablero.
-
-Desventajas:
-
-- Puede valorar una amenaza que todavía no se puede jugar.
-- No considera completamente la regla del tablero obligatorio.
-
-### Opción 3: heurística jerárquica y sensible al destino
-
-Combina:
-
-1. Líneas posibles del mega-tablero.
-2. Mini-tableros ganados.
-3. Posición de los mini-tableros.
-4. Líneas posibles dentro de cada mini-tablero.
-5. Control de centros y esquinas.
-6. Amenazas inmediatas.
-7. Mini-tablero donde deberá jugar el siguiente jugador.
-8. Libertad para jugar en cualquier tablero.
-
-Ventajas:
-
-- Considera las partes más importantes del juego.
-- Puede atacar y defender.
-- Analiza a qué tablero enviará al rival.
-- Produce decisiones más completas.
-
-Desventajas:
-
-- Es más lenta que las otras opciones.
-- Los pesos tuvieron que elegirse manualmente.
-- No garantiza una partida perfecta si se alcanza el límite de profundidad.
+`mejor_movimiento(tablero, tablero_destino, tiempo_limite=TIEMPO_LIMITE)` es
+el punto de entrada público — infiere de quién es el turno contando marcas
+en el tablero (no recibe `jugador` como parámetro) y retorna la tupla
+`(fila_meta, col_meta, fila_mini, col_mini)` del mejor movimiento encontrado.
 
 ---
 
-## Organización del código
+## Interfaz y loop principal (`interfaz.py`, `main.py`)
 
-| Función | Propósito |
-|---|---|
-| `crear_tablero` | Crea los nueve mini-tableros. |
-| `crear_macro_tablero` | Guarda el estado de cada mini-tablero. |
-| `hay_tres_en_linea` | Comprueba filas, columnas y diagonales. |
-| `obtener_estado_mini` | Decide si un mini-tablero continúa, fue ganado o empató. |
-| `obtener_ganador_global` | Comprueba si alguien ganó el mega-tablero. |
-| `obtener_movimientos_legales` | Genera únicamente las jugadas permitidas. |
-| `aplicar_movimiento` | Coloca una marca y calcula el siguiente destino. |
-| `deshacer_movimiento` | Retira una jugada después de analizarla. |
-| `evaluar_heuristica` | Calcula qué tan favorable es una posición. |
-| `ordenar_movimientos` | Revisa primero victorias, bloqueos y buenas posiciones. |
-| `minimax` | Busca la mejor jugada mediante maximización y minimización. |
-| `elegir_movimiento_sistema` | Controla la profundidad y el tiempo. |
-| `texto_a_movimiento` | Convierte, por ejemplo, `Gc` en `(6, 2)`. |
-| `mostrar_tablero` | Imprime el tablero completo. |
-| `ejecutar_partida` | Controla los turnos y termina la partida. |
+`interfaz.py` centraliza toda la entrada/salida: lectura y validación de
+movimientos en formato `Campo+Posición`, impresión del tablero (las casillas
+vacías muestran su letra, para que el jugador sepa qué escribir), y mensajes
+de estado.
 
-
-## Pruebas básicas
-
-Desde una terminal podemos ejecutar:
+`main.py` expone tres modos, todos construidos sobre el mismo loop de turnos
+(`_ejecutar_partida`, que recibe cómo obtener el movimiento de X y de O):
 
 ```bash
-python3 gato_de_gatos.py --pruebas
+python3 main.py
+# 1. Humano vs Humano   -> jugar()
+# 2. IA vs IA           -> jugar_ia_vs_ia()
+# 3. Humano vs IA       -> jugar_humano_vs_ia()  (elige tu símbolo)
 ```
 
-Estas pruebas comprueban:
+---
 
-- Conversión de coordenadas.
-- Detección de tres en línea.
-- Actualización del tablero.
-- Cálculo del siguiente tablero.
-- Empate de un mini-tablero.
-- Victoria en el mega-tablero.
+## Testing
 
-Si todo está correcto aparecerá:
-
-```text
-Pruebas básicas superadas correctamente.
+```bash
+python3 -m pytest tests_stub.py -v
 ```
 
+20 tests cubren `Tablero`, `movimientos_validos`, `evaluar_posicion`,
+`minimax` (encuentra victorias inmediatas, bloquea amenazas de un
+movimiento, respeta el límite de tiempo) y una partida completa IA vs IA de
+principio a fin sin errores.
 
-## Integrantes
+### `Case Study/`
 
+Carpeta con partidas reales jugadas contra la IA (transcritas movimiento por
+movimiento), el análisis de por qué tomó ciertas decisiones, y casos de
+regresión ejecutables que reconstruyen posiciones específicas de esas
+partidas para verificar que un bug encontrado no vuelva a aparecer:
 
+```bash
+python3 "Case Study/regresion_juego1_campo_e.py"
+```
 
+---
+
+## Créditos
+
+Basado en el stub del curso de Inteligencia Artificial (ITAM, Otoño 2026).
+Incorpora ideas de optimización (valores por profundidad, presupuesto de
+tiempo adaptativo, PV move ordering, componente de amenaza en destino
+forzado) adaptadas de una implementación de referencia compartida por el
+equipo, integradas sobre la estructura modular de este proyecto.
