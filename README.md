@@ -11,20 +11,4 @@ HEURÍSTICAS QUE PODEMOS USAR
 
 
 MIN-MAX
-El estado evaluado ahora es:
 
-$$ s=(T,M,d,p) $$
-\(T\): las 81 casillas.
-\(M\): estado de los nueve mini-tableros.
-\(d\): mini-tablero obligatorio o libertad de elección.
-\(p\): jugador del siguiente turno.
-
-En cada nivel:
-
-Genera únicamente movimientos legales.
-Coloca temporalmente la marca.
-Actualiza el mini-tablero y el mega-tablero.
-Calcula a dónde será enviado el rival.
-Llama recursivamente a minimax.
-Deshace exactamente esa jugada.
-Maximiza si juega el sistema y minimiza si juega el rival.
