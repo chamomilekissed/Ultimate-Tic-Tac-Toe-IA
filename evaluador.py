@@ -188,6 +188,69 @@ def evaluar_amenaza_destino(tablero: "tb.Tablero", tablero_destino: Optional[Tup
     return amenazas_propias - amenazas_rivales
 
 
+def evaluar_amenaza_destino_futura(tablero: "tb.Tablero", tablero_destino: Optional[Tuple[int, int]],
+                                   jugador_actual: str) -> int:
+    """
+    Extiende evaluar_amenaza_destino un nivel más: no solo "¿es peligroso
+    el mini-tablero al que me mandan?", sino "de las casillas que puedo
+    jugar ahí, ¿a qué campo mandaría yo al rival después, y qué tan
+    peligroso es ESE campo para él?".
+
+    Si jugador_actual ya tiene una victoria inmediata en el mini-tablero
+    obligatorio, tomarla domina cualquier otra consideración (tiene premio
+    propio mucho mayor vía evaluar_control_posiciones/evaluar_progreso_meta)
+    y no tiene sentido asomarse más allá — se retorna 0. Si no, se asume
+    que jugador_actual jugaría racionalmente la casilla que manda al rival
+    al campo que MENOS le convenga a él (el rival).
+
+    Es una aproximación barata (un tablero más por casilla candidata, sin
+    simular el movimiento de verdad con aplicar_movimiento/deshacer) — no
+    reemplaza una búsqueda real de minimax, solo le da a la heurística de
+    hoja un poco más de "olfato" sobre el efecto en cadena de la regla del
+    tablero obligatorio, más allá del mini-tablero inmediato.
+
+    Args:
+        tablero: Estado actual del juego
+        tablero_destino: Mini-tablero obligatorio para jugador_actual, o None
+        jugador_actual: 'X' o 'O' — quien debe mover en esta posición
+
+    Returns:
+        Puntuación en perspectiva de jugador_actual (positiva = le
+        conviene), o 0 si no aplica (sin destino, ya decidido, tablero
+        lleno, o ya hay una victoria inmediata disponible ahí mismo).
+    """
+    oponente = JUGADOR_O if jugador_actual == JUGADOR_X else JUGADOR_X
+
+    if tablero_destino is None or not tablero.es_mini_tablero_disponible(*tablero_destino):
+        return 0
+
+    mini = tablero.obtener_mini_tablero(*tablero_destino)
+    if contar_2_en_linea(mini, jugador_actual) > 0:
+        return 0
+
+    casillas_vacias = [
+        (fila, col)
+        for fila in range(TAMAÑO_MINI)
+        for col in range(TAMAÑO_MINI)
+        if mini[fila][col] is None
+    ]
+    if not casillas_vacias:
+        return 0
+
+    peligros_para_rival = []
+    for fila, col in casillas_vacias:
+        if not tablero.es_mini_tablero_disponible(fila, col):
+            peligros_para_rival.append(0)
+            continue
+        siguiente = tablero.obtener_mini_tablero(fila, col)
+        peligros_para_rival.append(
+            contar_2_en_linea(siguiente, oponente) - contar_2_en_linea(siguiente, jugador_actual)
+        )
+
+    mejor_para_jugador_actual = min(peligros_para_rival)
+    return -mejor_para_jugador_actual
+
+
 def evaluar_posicion(tablero: "tb.Tablero", es_maximizando: bool,
                      tablero_destino: Optional[Tuple[int, int]] = None,
                      debug: bool = False) -> int:
@@ -203,8 +266,9 @@ def evaluar_posicion(tablero: "tb.Tablero", es_maximizando: bool,
                        se conserva para la convención de llamada de minimax.
         tablero_destino: Mini-tablero al que está obligado a jugar quien
                        mueve ahora (fila_meta, col_meta), o None si puede
-                       elegir libremente. Alimenta evaluar_amenaza_destino;
-                       si se omite, ese componente queda neutral.
+                       elegir libremente. Alimenta evaluar_amenaza_destino
+                       y evaluar_amenaza_destino_futura; si se omite, esos
+                       componentes quedan neutrales.
         debug: Si True, imprime el desglose por componente (crudo y
                ponderado) antes de retornar. Usar solo para diagnóstico
                manual: minimax() lo llama sin este flag (miles de veces
@@ -222,6 +286,7 @@ def evaluar_posicion(tablero: "tb.Tablero", es_maximizando: bool,
     4. Control de posiciones clave (w=PESO_POSICIONES_CLAVE)
     5. Evaluación de mini-tableros (w=PESO_CONTROL_LOCAL)
     6. Amenaza en el mini-tablero de destino forzado (w=PESO_AMENAZA_DESTINO)
+    7. Amenaza en el destino forzado un nivel más adelante (w=PESO_AMENAZA_DESTINO_FUTURA)
     """
     ganador = tablero.detectar_ganador_meta()
     if ganador == JUGADOR_X:
@@ -245,6 +310,8 @@ def evaluar_posicion(tablero: "tb.Tablero", es_maximizando: bool,
     mini = evaluar_mini_tableros(tablero)
     amenaza_destino_propia = evaluar_amenaza_destino(tablero, tablero_destino, jugador_actual)
     amenaza_destino = amenaza_destino_propia if jugador_actual == JUGADOR_X else -amenaza_destino_propia
+    amenaza_futura_propia = evaluar_amenaza_destino_futura(tablero, tablero_destino, jugador_actual)
+    amenaza_futura = amenaza_futura_propia if jugador_actual == JUGADOR_X else -amenaza_futura_propia
 
     componentes = [
         ("progreso_meta", progreso, PESO_PROGRESO_META_TABLERO),
@@ -253,6 +320,7 @@ def evaluar_posicion(tablero: "tb.Tablero", es_maximizando: bool,
         ("control_posiciones", control, PESO_POSICIONES_CLAVE),
         ("mini_tableros", mini, PESO_CONTROL_LOCAL),
         ("amenaza_destino", amenaza_destino, PESO_AMENAZA_DESTINO),
+        ("amenaza_destino_futura", amenaza_futura, PESO_AMENAZA_DESTINO_FUTURA),
     ]
     puntuacion = sum(crudo * peso for _, crudo, peso in componentes)
 

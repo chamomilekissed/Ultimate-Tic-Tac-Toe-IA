@@ -1,0 +1,62 @@
+Log de torneo -- 20 partidas, tiempo_limite=2.0s por jugada
+
+Partida 1: O en 60 jugadas
+  Bi Ii Ib Bh He Ee Ea Ae Ed Dh Hb Bb Bg Gd Dg Gg Gc Ci Ic Cd Da Ac Cb Bf Fh Hi If Fb Be Ei Id Db Ba Ah Hd Di Ig Gi Ie Eb Aa Af Fg Gf Fc Cg Ga Ad Dc Cc Ca Hf Fi Eh Ha Ge Ch Hh Hc Ce
+
+Partida 2: O en 54 jugadas
+  Bi Ii Ie Ed Dg Gf Fb Bh Hc Cg Gc Cb Bd De Ec Ch Hh Hd Da Ab Bf Fe Eh He Ei Ib Ba Ag Ga Ah Hb Be Ef Fd Di If Fg Gi Ic Cc Ci Ig Ge Id Dd Cf Fc Ca Af Fh Hi Ia Ai Ff
+
+Partida 3: X en 55 jugadas
+  Bc Cd Db Bd Df Fd Di Ig Gd Da Ai If Fi Id Dh He Eh Ha Aa Ac Cg Gf Fc Ch Hf Fg Gg Gh Hc Cb Bf Fa Ah Hd Dc Cf Ag Gi Ie Ee Ei Ii Ia Ge Ea Gc Ce Ef Ih Hh Hb Bb Bi Ic Cc
+
+Partida 4: X en 61 jugadas
+  Ec Ch Hb Bg Gd De Ea Ah Ha Ai Ia Ab Bf Fe Eg Gi Ii Id Dh Hd Di If Fh Hc Cf Fd Dc Ci Ih Hf Ff Fa Af Fb Be Ee Ef Fg Gg Gh He Eb Ba Ad Db Bd Df Ib Bb Bc Cg Gb Bh Hg Ga Ag Hh Ic Cc Cb Ie
+
+Partida 5: O en 46 jugadas
+  Bc Cb Bd Da Ac Cd Di Ia Af Fd De Ei Ib Bi Ii Ih Hd Df Fh Hb Bg Ga Ad Db Bf Fe Eg Gi If Ff Cc Ch He Ec Ca Ag Gh Hg Gb Be Ee Ef Ha Ai Ie Dc
+
+Partida 6: X en 63 jugadas
+  Ce Ei Ig Gg Gi If Fa Af Fe Ed Db Be Eb Bg Gc Ci Ia Ae Ea Ac Ch He Eh Ha Ab Bd Df Ff Fb Bh Hf Fd De Eg Gd Dh Hg Gb Bc Cg Ga Aa Ai Ie Ec Cc Cd Di Ih Hh Hi Ic Cf Fh Hc Bi Ib Fi Ii Dd Dg Ge Gf
+
+Partida 7: X en 59 jugadas
+  Eh Hi Ig Gh Hb Bd Da Ag Gd Di Ih Hd Dg Gb Bb Bi Ie Ee Ec Ca Aa Ae Eg Gf Fg Ge Ef Fh Hf Fi Ii Ah He Ei Ea Af Fe Ed Dc Cd De Eb Bh Hh Hc Ci Fb Bc Cb Be Fa Ab Bg Ff Fd Ba Ch Hg Ce
+
+Partida 8: O en 68 jugadas
+  Ib Ba Ad De Ef Fh Hb Bc Ca Aa Ag Ge Ed Db Bi Ie Eg Gi Ii Id Df Fg Gb Bh Hg Gf Fb Bd Da Ab Bg Gg Gc Cg Gh Hc Cd Di Ih Hf Ff Fc Ce Ec Cb Be Eh Hd Dc Cf Fd Dh Hi Ig Ga Af Fa Ae Ee Ah He If Fe Ch Hh Ci Bf Bb
+
+Partida 9: EMPATE en 63 jugadas
+  Ff Fe Eb Bf Fd Df Fh Hf Fi Ie Ec Cc Cb Bd Dd Di Ii Ih He Ei Ib Ba Ab Bc Ci Ig Gi Ia Aa Ah Hg Ge Eh Hd Da Ae Ee Dh Hb Bi Id Dg Gg Gh Ha Ai Ic Ce Cf Fa Ac Ch Hi If Fc Cd Cg Gd Gb Ca Gf Gc Ga
+
+Partida 10: X en 57 jugadas
+  Ic Ce Eh Hf Fe Eg Ge Eb Bd Dg Gd Dh Hd Db Bi Ib Bg Gh Ha Ah Hi Ia Ai If Fc Cd De Ee Ef Fh Hc Ch Hb Bb Ba Aa Af Ff Fa Ae Ea Ac Ci Ig Ga Ab Ii Ih Gc Cg Gg Di Ie Ed Ei Id Ec
+
+Partida 11: X en 55 jugadas
+  Cf Fd Db Be Ec Cd Da Ae Ei Ih Hi Ib Bg Gf Fh Hh He Eg Gh Hf Fa Ac Ch Ha Ad Dh Hb Bh Hg Ga Aa Af Ff Fg Ge Ed De Ea Ag Gb Bd Dg Gc Ci Ic Cg Gg Dc Cb Bi Ii If Fi Ia Di
+
+Partida 12: X en 61 jugadas
+  Ei Ic Cb Bf Fd Dh Hb Bi If Fg Gi Ih He Eg Gf Fi Ie Ed Dd De Ea Ag Gh Hi Ia Aa Af Fa Ac Ce Ec Ci Ii Bh Hd Di Cd Dc Ca Ai Fb Be Ee Ff Fc Cc Cg Gd Dg Gb Ba Ad Df Fh Ha Hh Hf Bd Db Ga Gg
+
+Partida 13: O en 54 jugadas
+  Ee Ec Cg Gh Hc Ch He Eb Bi Ih Hb Bh Hf Fi If Fe Eg Gd Di Ig Gg Ga Ac Cf Fc Cd Dh Hg Gc Cc Ca Ad De Ea Aa Ai Ia Af Fg Gi Ii Ie Ah Hd Dc Ce Fa Ae Ib Be Df Fh Hh Ge
+
+Partida 14: X en 61 jugadas
+  Dg Gd Dc Ch He Ea Ad Da Ai Ii Ic Ce Eh Hc Ci Ih Ha Af Fh Hb Bg Gg Gb Bf Fa Ae Eg Gi If Fb Bc Cf Fi Id Dd De Ef Fe Eb Bi Ig Ga Ab Bb Be Ei Ib Ac Cc Ca Ah Hi Ie Ec Cd Di Ag Ff Fc Cb Ee
+
+Partida 15: O en 70 jugadas
+  Fa Ad De Ef Fe Eg Gd Dh Hh Ha Ae Ea Ai Ii Ih He Ei Ie Eh Hc Ch Hd Dc Ce Ee Eb Bc Ci Id Db Bi Ic Cc Cd Dg Gb Bg Gf Fd Gc Cf Fg Ge Ec Ca Ac Cg Gg Ga Ah Hg Gh Hi Ib Bd Gi Ig Fb Bb Bh Bf Fc Cb If Fh Ff Fi Aa Ag Ab
+
+Partida 16: X en 57 jugadas
+  Be Ea Ac Ca Ab Bb Bi Ie Ee Eh Hf Fh He Eg Gi Ig Gc Cc Ce Ef Fe Ei If Fa Aa Ii Ib Ba Hi Id Df Fg Ge Ci Ih Hd Di Ia Dg Gh Hb Bf Fd De Cb Bg Ga Fc Cf Fb Bd Db Bh Hh Hc Cg Dh
+
+Partida 17: X en 57 jugadas
+  Gb Be Eg Gc Ce Ec Cc Ch Hb Bh Hi Ig Gg Gi Ia Ai If Fa Af Fh He Ei Ic Ca Ah Hg Gd De Ea Ag Ga Ae Ef Fd Df Fe Ed Dd Dh Hf Ff Fb Bd Da Aa Ad Db Ba Ab Bi Ih Ha Ac Cd Dc Cg Ii
+
+Partida 18: O en 58 jugadas
+  Fh Hi Ie Ei Ig Gg Gh Ha Aa Ac Cd Df Fb Bc Ci Id Di If Fa Ad Dd Dh Hc Cf Fg Ge Eg Gd Db Be Ee Ef Fe Ec Cg Ga Ae Ba Ah Hf Ih Hh Hd Da Ai Ib Bg Bf Cc Ch He De Ia Ic Ce Bd Dc Hg
+
+Partida 19: X en 49 jugadas
+  Dd Dh Hf Fe Ef Fd Db Be Ei Ic Cb Bd Da Aa Ae Ed Dg Ga Ad Hg Ge Eh Hd Hh Hi If Fh Hc Ce Ea Ah Hb Bh Ha Af Fc Cg Gi Ib Bg Gd Ie Ec Ci Ia Gb Bi Ig Gf
+
+Partida 20: X en 51 jugadas
+  Di Ia Ag Gf Fe Ef Fh Hh Hc Cg Gb Be Ei Ic Cc Ci Ie Ed Dg Gh Ha Ac Ca Ae Eg Gc Ce Ea Af Fc Ch Hi Ib Bd Dh Hg Gi Ig Gg Ge Eh Ga Ah Cb Bb Bc Cd Ai Ii Id Fb
+

@@ -59,6 +59,7 @@ PESO_DEFENSA_CRITICA = 6         # ¿El oponente va a ganar pronto?
 PESO_POSICIONES_CLAVE = 7        # ¿Controla centro/esquinas del meta-tablero?
 PESO_CONTROL_LOCAL = 3           # Evaluación dentro de mini-tableros
 PESO_AMENAZA_DESTINO = 8         # ¿A qué mini-tablero se manda al rival: es un regalo o una trampa?
+PESO_AMENAZA_DESTINO_FUTURA = 4  # Un nivel más: de mis casillas disponibles, ¿a dónde mandaría yo al rival después?
 
 # ===== CONSTANTES DE MINIMAX (BÚSQUEDA) =====
 

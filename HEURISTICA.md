@@ -46,8 +46,7 @@ se le cambia el signo a nada.
 **Por qué importa:** cuando la búsqueda de **O** reporta un valor cercano a
 `+9990`, NO es un error de signo — significa que la propia búsqueda de O
 concluyó que X tiene una victoria casi asegurada, sin importar lo que O
-haga. Esto pasó de verdad en una partida real (`Case Study/Juego 4.md`) y
-generó confusión hasta que se revisó esta convención con cuidado.
+haga.
 
 Rango de valores: `[VALOR_PERDEDOR, VALOR_GANADOR]` = `[-10000, +10000]`
 (`config.py`).
@@ -311,6 +310,83 @@ pasa en los tests y en llamadas directas — dentro de la búsqueda real
 
 ---
 
+### 4.7 `evaluar_amenaza_destino_futura` — peso `PESO_AMENAZA_DESTINO_FUTURA = 4`
+
+**Pregunta que responde:** un nivel más allá de 4.6 — de las casillas que
+`jugador_actual` podría jugar en el mini-tablero obligatorio, ¿a dónde
+mandaría cada una al rival, y qué tan peligroso es *ese* campo para él?
+
+Esto nació directamente de una limitación que quedó documentada en la
+primera versión de este archivo (sección 9): `evaluar_amenaza_destino` solo
+mira el mini-tablero inmediato, sin preguntarse "si mando al rival aquí,
+¿a dónde me manda él a mí después?".
+
+```python
+if tablero_destino es None o ya decidido: return 0
+mini = ese mini-tablero
+if contar_2_en_linea(mini, jugador_actual) > 0:
+    return 0   # hay una victoria inmediata ahí — tomarla domina, no hace falta ver más allá
+
+casillas_vacias = casillas libres de `mini`
+peligros_para_rival = []
+for cada (fila, col) en casillas_vacias:
+    siguiente = tablero.obtener_mini_tablero(fila, col)   # esa es la CLAVE:
+        # la posición (fila, col) DENTRO del mini-tablero actual es la
+        # misma coordenada que el CAMPO al que se manda al rival — es
+        # la regla del tablero obligatorio, aplicada un nivel hacia adelante
+    peligros_para_rival.append(
+        contar_2_en_linea(siguiente, oponente) - contar_2_en_linea(siguiente, jugador_actual)
+    )
+
+mejor_para_jugador_actual = min(peligros_para_rival)   # jugador_actual elegiría
+                                                         # la casilla que MENOS le
+                                                         # convenga al rival
+return -mejor_para_jugador_actual
+```
+
+**El truco de implementación** es que no hace falta simular el movimiento
+con `aplicar_movimiento`/`deshacer_movimiento` para saber a qué campo manda
+cada casilla candidata — la posición `(fila, col)` *dentro* del mini-tablero
+actual **es literalmente** la coordenada del campo siguiente en el
+meta-tablero (la misma regla que ya usan `tablero.py` y `main.py` para
+calcular `tablero_destino` después de cada jugada real). Eso hace que esta
+función sea barata: un tablero más por casilla candidata (hasta 9), sin
+ninguna recursión de búsqueda de verdad.
+
+**Por qué se corta si ya hay una victoria inmediata:** si `jugador_actual`
+puede ganar el mini-tablero obligatorio ahora mismo, va a tomar esa jugada
+casi siempre (el premio directo, vía `evaluar_control_posiciones` y
+`evaluar_progreso_meta`, es mucho mayor que cualquier consideración sobre a
+dónde manda al rival después) — así que este componente no intenta
+"convencer" a la heurística de lo contrario.
+
+**Peso menor que el nivel inmediato (4 contra 8):** es una señal más
+especulativa — asume que `jugador_actual` jugaría exactamente la casilla
+"óptima para el destino" sin considerar ningún otro factor táctico de esa
+casilla en sí misma. El peso más bajo refleja esa menor certeza, siguiendo
+el mismo principio que `PESO_CONTROL_LOCAL` (la señal más "de grano fino"
+tiene el peso más chico).
+
+**Ejemplo:** X debe jugar en el Campo E. O ya tiene una amenaza armada
+tanto en el Campo A como en el Campo B. Si las **únicas** casillas vacías
+que le quedan a X en el Campo E son `a` (manda a O al Campo A) y `b` (manda
+a O al Campo B) — X está atrapado sin importar qué juegue:
+
+```
+Campo E: . . X / O O X / X O O      (solo 'a' y 'b' siguen vacías)
+```
+
+```
+[evaluar_posicion] ... | amenaza_destino=-2 (x8=-16) | amenaza_destino_futura=-1 (x4=-4)
+```
+
+`amenaza_destino_futura=-1` porque, de las dos casillas disponibles,
+**ambas** mandan a O a un campo donde ya tiene una amenaza (peligro=1 para
+cada una) — no hay ninguna casilla "segura" entre las candidatas, así que
+`mejor_para_jugador_actual = min(1, 1) = 1`, y el resultado es `-1`.
+
+---
+
 ## 5. Cómo se combinan los componentes
 
 ```python
@@ -320,14 +396,15 @@ componentes = [
     ("defensa",             defensa,         PESO_DEFENSA_CRITICA),        # 6
     ("control_posiciones",  control,         PESO_POSICIONES_CLAVE),       # 7
     ("mini_tableros",       mini,            PESO_CONTROL_LOCAL),          # 3
-    ("amenaza_destino",     amenaza_destino, PESO_AMENAZA_DESTINO),        # 8
+    ("amenaza_destino",       amenaza_destino, PESO_AMENAZA_DESTINO),         # 8
+    ("amenaza_destino_futura", amenaza_futura, PESO_AMENAZA_DESTINO_FUTURA), # 4
 ]
 puntuacion = sum(crudo * peso for _, crudo, peso in componentes)
 ```
 
 Suma ponderada simple: cada componente calcula un número "crudo" (con
 signo, en perspectiva absoluta de X), se multiplica por su peso, y se
-suman los seis resultados.
+suman los siete resultados.
 
 | # | Componente | Qué mide | Peso actual |
 |---|---|---|---|
@@ -337,6 +414,7 @@ suman los seis resultados.
 | 4 | `evaluar_control_posiciones` | Campos ganados × `IMPORTANCIA_CAMPO` | 7 |
 | 5 | `evaluar_mini_tableros` | Material + amenazas locales por mini-tablero | 3 |
 | 6 | `evaluar_amenaza_destino` | ¿El destino forzado es un regalo o una trampa? | 8 |
+| 7 | `evaluar_amenaza_destino_futura` | Un nivel más: ¿a dónde mandaría yo al rival después? | 4 |
 
 Los pesos no salieron de una fórmula — se calibraron a mano a partir de
 partidas reales (ver siguiente sección), y siguen siendo candidatos a
@@ -359,7 +437,8 @@ alternativa `Ec` (que no gana nada). Con los pesos **actuales**:
 | defensa | 1 | ×6 | 6 |
 | control_posiciones | 0 | ×7 | 0 |
 | mini_tableros | 2 | ×3 | 6 |
-| amenaza_destino | — | ×8 | (0, sin destino en este ejemplo) |
+| amenaza_destino | 0 | ×8 | 0 (sin `tablero_destino` en este ejemplo) |
+| amenaza_destino_futura | 0 | ×4 | 0 (idem) |
 | **TOTAL** | | | **-2** |
 
 **Jugada `Eg` (X gana el Campo E, el centro):**
@@ -371,6 +450,8 @@ alternativa `Ec` (que no gana nada). Con los pesos **actuales**:
 | defensa | 0 | ×6 | 0 |
 | control_posiciones | **4** | ×7 | **28** |
 | mini_tableros | 1 | ×3 | 3 |
+| amenaza_destino | 0 | ×8 | 0 |
+| amenaza_destino_futura | 0 | ×4 | 0 |
 | **TOTAL** | | | **3** |
 
 `control_posiciones` sube de 0 a 4 (peso 7 = +28) porque X pasa a controlar
@@ -395,7 +476,7 @@ python3 "Case Study/regresion_juego1_campo_e.py"
 imprime el desglose completo antes de retornar:
 
 ```
-[evaluar_posicion] progreso_meta=0 (x10=0) | bifurcaciones=-4 (x7=-28) | defensa=0 (x6=0) | control_posiciones=4 (x7=28) | mini_tableros=1 (x3=3) | amenaza_destino=0 (x8=0)
+[evaluar_posicion] progreso_meta=0 (x10=0) | bifurcaciones=-4 (x7=-28) | defensa=0 (x6=0) | control_posiciones=4 (x7=28) | mini_tableros=1 (x3=3) | amenaza_destino=0 (x8=0) | amenaza_destino_futura=0 (x4=0)
 [evaluar_posicion] TOTAL = 3
 ```
 
@@ -439,16 +520,8 @@ sección 6 usa los valores **después** de este fix. Detalle completo en
 - **`evaluar_progreso_meta` no premia poseer campos por sí solo** — solo
   reacciona cuando ya hay 2 campos en línea a nivel meta. Ganar el primer
   campo del juego no mueve este componente (ver sección 4.1).
-- **`evaluar_amenaza_destino` solo mira un nivel de profundidad**: evalúa
-  el mini-tablero inmediato al que se manda al rival, pero no "si lo mando
-  aquí, ¿a dónde me manda él a mí después?".
 - Los componentes 4.2/4.3/4.5 recorren los 9 mini-tableros con lógica
   parecida (tres bucles separados en vez de uno combinado) — funciona
   correctamente y cada uno tiene una semántica distinta, pero hay
   duplicación de iteración que se podría consolidar sin cambiar el
   resultado.
-
-Ver también la sección de recomendaciones de mejora del proyecto (discutida
-en el chat, no documentada aparte) para el panorama completo de posibles
-siguientes pasos, incluyendo los que no tocan la heurística (transposition
-table con tipo de cota, hash incremental, quiescence search).
