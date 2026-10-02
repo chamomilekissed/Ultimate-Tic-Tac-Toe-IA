@@ -1,6 +1,6 @@
 Sí. Este tercer juego ya es especialmente útil porque además del transcript tenemos **telemetría de la búsqueda de la IA**. Es **Humano vs IA**, tú eres **X** y la IA juega **O**. La partida comienza con `Ag`; la primera respuesta de la IA es `Gb`, buscando a profundidad 7, 95,774 nodos y usando los 4 s disponibles.  
 
-## Transcript limpio — Juego 3
+## Transcript limpio — Juego 4
 
 |  # | Jugador | Movimiento | IA: prof. / nodos / valor | Evento                              |
 | -: | :-----: | :--------: | ------------------------- | ----------------------------------- |

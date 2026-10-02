@@ -79,8 +79,9 @@ def _ejecutar_partida(tablero: "tb.Tablero", obtener_movimiento_x: ObtenerMovimi
     """
     es_turno_x = True
     tablero_destino = None
+    partida_terminada = False
 
-    while True:
+    while not partida_terminada:
         ui.mostrar_tablero(tablero)
 
         if es_turno_x:
@@ -96,15 +97,18 @@ def _ejecutar_partida(tablero: "tb.Tablero", obtener_movimiento_x: ObtenerMovimi
         if registrador is not None:
             registrador.registrar(jugador, movimiento, estadisticas)
 
-        if tablero.detectar_ganador_meta() is not None or tablero.verificar_empate():
+        partida_terminada = (
+            tablero.detectar_ganador_meta() is not None
+            or tablero.verificar_empate()
+        )
+        if partida_terminada:
             imprimir_resultado(tablero)
             if registrador is not None:
                 ruta = registrador.guardar()
                 ui.mostrar_mensaje(f"Transcripción guardada en: {ruta}")
-            break
-
-        es_turno_x = not es_turno_x
-        tablero_destino = (movimiento[2], movimiento[3])
+        else:
+            es_turno_x = not es_turno_x
+            tablero_destino = (movimiento[2], movimiento[3])
 
 
 def jugar() -> None:
@@ -128,8 +132,8 @@ def jugar_humano_vs_ia() -> None:
     """
     Ejecuta un juego completo de Ultimate Tic-Tac-Toe humano vs IA.
 
-    Pregunta con qué símbolo quiere jugar el humano (X u O); la IA
-    (minimax) toma el otro símbolo.
+    Pregunta con qué símbolo quiere jugar el humano. X siempre inicia: si
+    el humano elige X comienza la persona; si elige O comienza la IA.
     """
     tablero = tb.Tablero()
     simbolo_humano = ui.solicitar_simbolo_jugador()
@@ -143,10 +147,7 @@ def jugar_humano_vs_ia() -> None:
 
 
 if __name__ == "__main__":
-    print("1. Humano vs Humano")
-    print("2. IA vs IA")
-    print("3. Humano vs IA")
-    opcion = input("Elige: ")
+    opcion = ui.solicitar_modo_juego()
 
     if opcion == "1":
         jugar()

@@ -58,8 +58,18 @@ class Tablero:
 
         Returns:
             True si el movimiento se aplicó exitosamente
-            False si la casilla ya estaba ocupada
+            False si las coordenadas o el jugador son inválidos, si el
+            mini-tablero ya terminó o si la casilla está ocupada.
         """
+        coordenadas = (fila_meta, col_meta, fila_mini, col_mini)
+        coordenadas_validas = all(0 <= valor < TAMAÑO_MINI for valor in coordenadas)
+        jugador_valido = jugador in (JUGADOR_X, JUGADOR_O)
+
+        if not coordenadas_validas or not jugador_valido:
+            return False
+        if not self.es_mini_tablero_disponible(fila_meta, col_meta):
+            return False
+
         idx = self._indice_mini(fila_meta, col_meta)
         if self.mini_tableros[idx][fila_mini][col_mini] is not None:
             return False
@@ -249,12 +259,12 @@ class Tablero:
 
     def get_estado_hash(self) -> int:
         """
-        Retorna un hash único del estado actual (para Transposition Tables).
+        Retorna un identificador hash del estado actual.
 
         Convierte mini_tableros y meta_tablero a tuplas inmutables y aplica
-        hash() de Python. Estados distintos producen (con probabilidad
-        prácticamente segura) hashes distintos, y el cálculo es O(81),
-        suficientemente rápido para llamarse miles de veces en minimax.
+        hash() de Python. La probabilidad de colisión es extremadamente baja
+        y el cálculo es O(81), suficientemente rápido para llamarse miles de
+        veces durante minimax.
         """
         mini_tuple = tuple(
             tuple(tuple(fila) for fila in mini) for mini in self.mini_tableros

@@ -84,6 +84,33 @@ def mostrar_mensaje(mensaje: str) -> None:
     print(mensaje)
 
 
+def convertir_texto_a_movimiento(entrada: str) -> Tuple[int, int, int, int]:
+    """Convierte una coordenada como ``Gc`` a sus cuatro índices internos.
+
+    Lanza ValueError cuando la entrada no tiene exactamente una letra de
+    campo mayúscula (A-I) seguida por una posición minúscula (a-i).
+    """
+    texto = entrada.strip()
+    if len(texto) != 2:
+        raise ValueError(
+            f"Entrada inválida: '{texto}'. Debe tener 2 caracteres, por ejemplo 'Gc'."
+        )
+
+    campo, posicion = texto[0], texto[1]
+    if campo not in CAMPOS:
+        raise ValueError(
+            f"Campo inválido: '{campo}'. Debe ser una letra mayúscula de A a I."
+        )
+    if posicion not in POSICIONES_MINI:
+        raise ValueError(
+            f"Posición inválida: '{posicion}'. Debe ser una letra minúscula de a a i."
+        )
+
+    fila_meta, col_meta = CAMPOS[campo]
+    fila_mini, col_mini = POSICIONES_MINI[posicion]
+    return (fila_meta, col_meta, fila_mini, col_mini)
+
+
 def obtener_movimiento_usuario() -> Tuple[int, int, int, int]:
     """
     Lee movimiento del usuario en formato "Ac" (Campo A, mini-posición c).
@@ -98,26 +125,14 @@ def obtener_movimiento_usuario() -> Tuple[int, int, int, int]:
     Returns:
         Tupla (fila_meta, col_meta, fila_mini, col_mini)
     """
-    while True:
+    movimiento = None
+    while movimiento is None:
         entrada = input("Ingresa tu movimiento (Campo+Posición, ej. 'Gc'): ").strip()
-
-        if len(entrada) != 2:
-            mostrar_mensaje(f"Entrada inválida: '{entrada}'. Debe tener 2 caracteres, ej. 'Gc'.")
-            continue
-
-        campo, posicion = entrada[0], entrada[1]
-
-        if campo not in CAMPOS:
-            mostrar_mensaje(f"Campo inválido: '{campo}'. Debe ser una letra mayúscula de A a I.")
-            continue
-
-        if posicion not in POSICIONES_MINI:
-            mostrar_mensaje(f"Posición inválida: '{posicion}'. Debe ser una letra minúscula de a a i.")
-            continue
-
-        fila_meta, col_meta = CAMPOS[campo]
-        fila_mini, col_mini = POSICIONES_MINI[posicion]
-        return (fila_meta, col_meta, fila_mini, col_mini)
+        try:
+            movimiento = convertir_texto_a_movimiento(entrada)
+        except ValueError as error:
+            mostrar_mensaje(str(error))
+    return movimiento
 
 
 def mostrar_movimiento(campo: str, posicion: Optional[str] = None, jugador: Optional[str] = None) -> None:
@@ -169,25 +184,33 @@ def solicitar_simbolo_jugador() -> str:
     Returns:
         'X' o 'O'
     """
-    while True:
-        respuesta = input("¿Quieres ser X u O? (X/O): ").strip().upper()
+    respuesta = ""
+    while respuesta not in (JUGADOR_X, JUGADOR_O):
+        respuesta = input(
+            "¿Quieres ser X (empiezas tú) u O (empieza la IA)? (X/O): "
+        ).strip().upper()
         if respuesta in (JUGADOR_X, JUGADOR_O):
-            return respuesta
-        mostrar_mensaje(f"Respuesta inválida: '{respuesta}'. Escribe 'X' o 'O'.")
+            mostrar_mensaje(
+                "Elegiste X: tú comienzas."
+                if respuesta == JUGADOR_X
+                else "Elegiste O: la IA comienza con X."
+            )
+        else:
+            mostrar_mensaje(f"Respuesta inválida: '{respuesta}'. Escribe 'X' o 'O'.")
+    return respuesta
 
 
-def solicitar_primer_jugador() -> str:
-    """
-    Pregunta quién debe jugar primero.
-
-    Returns:
-        'X' o 'O'
-    """
-    while True:
-        respuesta = input("¿Quién empieza? (X/O): ").strip().upper()
-        if respuesta in (JUGADOR_X, JUGADOR_O):
-            return respuesta
-        mostrar_mensaje(f"Respuesta inválida: '{respuesta}'. Escribe 'X' o 'O'.")
+def solicitar_modo_juego() -> str:
+    """Solicita uno de los tres modos disponibles y valida la respuesta."""
+    opcion = ""
+    while opcion not in ("1", "2", "3"):
+        print("1. Humano vs Humano")
+        print("2. IA vs IA")
+        print("3. Humano vs IA")
+        opcion = input("Elige una opción (1/2/3): ").strip()
+        if opcion not in ("1", "2", "3"):
+            mostrar_mensaje("Opción inválida. Escribe 1, 2 o 3.")
+    return opcion
 
 
 def mostrar_estado_juego(tablero: "tb.Tablero", turno: str) -> None:

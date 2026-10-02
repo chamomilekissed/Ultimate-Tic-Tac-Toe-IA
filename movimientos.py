@@ -63,6 +63,9 @@ def movimientos_validos(tablero: "tb.Tablero", tablero_destino: Optional[Tuple[i
     - Si tablero_destino está lleno: jugador puede jugar en cualquier mini-tablero disponible
     - Si tablero_destino es normal: solo puede jugar en ese mini-tablero (casillas vacías)
     """
+    if tablero.detectar_ganador_meta() is not None or tablero.verificar_empate():
+        return []
+
     if tablero_destino is not None and tablero.es_mini_tablero_disponible(*tablero_destino):
         tableros_a_revisar = [tablero_destino]
     else:

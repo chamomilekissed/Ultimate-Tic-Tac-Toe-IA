@@ -92,7 +92,7 @@ Si `minimax()` ya hubiera detectado que el juego terminó, habría retornado
 ahí mismo — nunca llega a llamar a `evaluar_posicion()`. Así que el chequeo
 terminal *dentro* de `evaluar_posicion()` es efectivamente una capa de
 seguridad redundante para cuando la función se llama **directamente**, sin
-pasar por `minimax()` — por ejemplo en los tests (`tests_stub.py`) o en
+pasar por `minimax()` — por ejemplo en los tests (`tests/test_gato_de_gatos.py`) o en
 scripts de diagnóstico. Ahí sí importa, porque nadie más filtró el caso
 terminal antes.
 
@@ -156,7 +156,7 @@ esa línea para ambos jugadores (no cuenta como amenaza de nadie) — es el
 comportamiento correcto: una línea con un campo empatado nunca se puede
 completar.
 
-Es el peso más alto de los seis porque una amenaza a nivel meta-tablero es
+Es el peso más alto de los siete porque una amenaza a nivel meta-tablero es
 lo más cerca que se puede estar de ganar el juego entero sin haberlo
 ganado ya.
 
@@ -330,13 +330,15 @@ if contar_2_en_linea(mini, jugador_actual) > 0:
 casillas_vacias = casillas libres de `mini`
 peligros_para_rival = []
 for cada (fila, col) en casillas_vacias:
-    siguiente = tablero.obtener_mini_tablero(fila, col)   # esa es la CLAVE:
+    if el campo (fila, col) ya está cerrado:
+        peligro = 1  # el rival obtiene libertad para elegir cualquier campo
+    else:
+        siguiente = tablero.obtener_mini_tablero(fila, col)   # esa es la CLAVE:
         # la posición (fila, col) DENTRO del mini-tablero actual es la
         # misma coordenada que el CAMPO al que se manda al rival — es
         # la regla del tablero obligatorio, aplicada un nivel hacia adelante
-    peligros_para_rival.append(
-        contar_2_en_linea(siguiente, oponente) - contar_2_en_linea(siguiente, jugador_actual)
-    )
+        peligro = contar_2_en_linea(siguiente, oponente) - contar_2_en_linea(siguiente, jugador_actual)
+    peligros_para_rival.append(peligro)
 
 mejor_para_jugador_actual = min(peligros_para_rival)   # jugador_actual elegiría
                                                          # la casilla que MENOS le

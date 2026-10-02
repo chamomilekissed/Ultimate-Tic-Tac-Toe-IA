@@ -240,12 +240,17 @@ def evaluar_amenaza_destino_futura(tablero: "tb.Tablero", tablero_destino: Optio
     peligros_para_rival = []
     for fila, col in casillas_vacias:
         if not tablero.es_mini_tablero_disponible(fila, col):
-            peligros_para_rival.append(0)
-            continue
-        siguiente = tablero.obtener_mini_tablero(fila, col)
-        peligros_para_rival.append(
-            contar_2_en_linea(siguiente, oponente) - contar_2_en_linea(siguiente, jugador_actual)
-        )
+            # Mandar al rival a un campo cerrado le permite elegir cualquier
+            # campo abierto. Esa libertad lo favorece, por eso representa un
+            # peligro pequeño en lugar de un valor neutral.
+            peligro = 1
+        else:
+            siguiente = tablero.obtener_mini_tablero(fila, col)
+            peligro = (
+                contar_2_en_linea(siguiente, oponente)
+                - contar_2_en_linea(siguiente, jugador_actual)
+            )
+        peligros_para_rival.append(peligro)
 
     mejor_para_jugador_actual = min(peligros_para_rival)
     return -mejor_para_jugador_actual

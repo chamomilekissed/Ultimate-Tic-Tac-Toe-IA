@@ -10,6 +10,8 @@ vs IA e IA vs IA.
 
 ```
 Gato/
+├── CODIGO_FINAL_ENTREGA/
+│   └── gato_de_gatos.py Archivo único para abrir en Spyder o entregar
 ├── config.py         Constantes globales: símbolos, tamaños, pesos del
 │                      evaluador, presupuestos de tiempo, líneas de victoria
 ├── tablero.py         Clase Tablero: estado del juego y reglas básicas
@@ -18,7 +20,9 @@ Gato/
 ├── minimax.py         Minimax + Alpha-Beta + Iterative Deepening
 ├── interfaz.py        Entrada/salida de terminal (formato "Gc")
 ├── main.py            Loop principal — los 3 modos de juego
-├── tests_stub.py       Suite de pruebas (pytest)
+├── tests/
+│   └── test_gato_de_gatos.py  Suite final de exactamente 100 casos
+├── tests_stub.py       20 pruebas históricas de compatibilidad
 └── Case Study/         Partidas jugadas, análisis de bugs y casos de regresión
 ```
 
@@ -78,7 +82,7 @@ del juego:
 retorna una puntuación en perspectiva absoluta de X (positivo = favorece a X,
 negativo = favorece a O), en el rango `[VALOR_PERDEDOR, VALOR_GANADOR]`
 (±10000). Primero revisa los casos terminales (`detectar_ganador_meta`,
-`verificar_empate`); si el juego sigue, suma 6 componentes ponderados:
+`verificar_empate`); si el juego sigue, suma 7 componentes ponderados:
 
 | Componente | Peso (`config.py`) | Qué mide |
 |---|---|---|
@@ -88,6 +92,7 @@ negativo = favorece a O), en el rango `[VALOR_PERDEDOR, VALOR_GANADOR]`
 | `evaluar_control_posiciones` | `PESO_POSICIONES_CLAVE` (7) | Campos ya ganados, ponderados por `IMPORTANCIA_CAMPO` (centro > esquina > borde) |
 | `evaluar_mini_tableros` | `PESO_CONTROL_LOCAL` (3) | Posesión local (casillas + amenazas) de cada mini-tablero |
 | `evaluar_amenaza_destino` | `PESO_AMENAZA_DESTINO` (8) | ¿El mini-tablero al que se manda al rival es un regalo o una trampa? |
+| `evaluar_amenaza_destino_futura` | `PESO_AMENAZA_DESTINO_FUTURA` (4) | Un nivel adicional: ¿a dónde podría mandar después al rival? |
 
 Con `debug=True` imprime el desglose completo (crudo y ponderado) de cada
 componente — pensado para diagnóstico manual, **no** se usa dentro de la
@@ -112,7 +117,7 @@ mini-tableros) y el caso de regresión que lo verifica están documentados en
 
 `minimax(tablero, profundidad, alfa, beta, es_maximizando, tablero_destino, cache, nivel=0)`
 es la búsqueda recursiva estándar: X maximiza, O minimiza, con poda
-alfa-beta (`if beta <= alfa: break`). Como la búsqueda muta el tablero real
+alfa-beta (el ciclo continúa únicamente mientras `alfa < beta`). Como la búsqueda muta el tablero real
 directamente (`aplicar_movimiento` / `deshacer_movimiento`) para no copiar
 en cada nodo, cada llamada recursiva está envuelta en `try/finally` — así el
 tablero siempre queda restaurado aunque la búsqueda se aborte a mitad de
@@ -127,7 +132,9 @@ camino (ver "Control de tiempo" abajo).
   retrase una derrota inevitable en vez de acelerarla.
 - **Transposition Table** (`TranspositionTable`, clave = `get_estado_hash()`
   + profundidad + destino + turno): cachea posiciones repetidas para no
-  recalcularlas. Tiene un límite de tamaño (`LIMITE_ESTADOS_MEMORIA`) para no
+  recalcularlas. Cada entrada indica si contiene un valor exacto, una cota
+  inferior o una cota superior, para reutilizar correctamente los cortes de
+  alfa-beta. Tiene un límite de tamaño (`LIMITE_ESTADOS_MEMORIA`) para no
   crecer sin control. **Se reinicia en cada profundidad** del iterative
   deepening — no se reutiliza entre pasadas, porque el valor terminal ahora
   depende de `nivel`, que no es el mismo en una pasada con
@@ -168,7 +175,8 @@ en el tablero (no recibe `jugador` como parámetro) y retorna la tupla
 `interfaz.py` centraliza toda la entrada/salida: lectura y validación de
 movimientos en formato `Campo+Posición`, impresión del tablero (las casillas
 vacías muestran su letra, para que el jugador sepa qué escribir), y mensajes
-de estado.
+de estado. En Humano vs IA, X siempre comienza: elegir X significa que
+comienza la persona y elegir O significa que comienza la IA usando X.
 
 `main.py` expone tres modos, todos construidos sobre el mismo loop de turnos
 (`_ejecutar_partida`, que recibe cómo obtener el movimiento de X y de O):
@@ -177,7 +185,13 @@ de estado.
 python3 main.py
 # 1. Humano vs Humano   -> jugar()
 # 2. IA vs IA           -> jugar_ia_vs_ia()
-# 3. Humano vs IA       -> jugar_humano_vs_ia()  (elige tu símbolo)
+# 3. Humano vs IA       -> jugar_humano_vs_ia()  (elige X u O)
+```
+
+Para Spyder o para la entrega en un solo archivo:
+
+```bash
+python3 CODIGO_FINAL_ENTREGA/gato_de_gatos.py
 ```
 
 ---
@@ -185,13 +199,21 @@ python3 main.py
 ## Testing
 
 ```bash
-python3 -m pytest tests_stub.py -v
+python3 -m pytest tests/test_gato_de_gatos.py -q
 ```
 
-20 tests cubren `Tablero`, `movimientos_validos`, `evaluar_posicion`,
-`minimax` (encuentra victorias inmediatas, bloquea amenazas de un
-movimiento, respeta el límite de tiempo) y una partida completa IA vs IA de
-principio a fin sin errores.
+La suite final contiene exactamente **100 casos**. Prueba coordenadas, las
+ocho líneas de victoria para X y O, meta-tablero, destinos forzados, empates,
+aplicar/deshacer, simetría de la heurística, victorias inmediatas de Minimax,
+límite de tiempo, tabla de transposiciones, una partida completa y la paridad
+entre los módulos y el archivo único. También revisa automáticamente que no
+aparezcan `break`, `continue` ni `pass` en ningún archivo Python.
+
+Las 20 pruebas históricas siguen disponibles y también deben aprobar:
+
+```bash
+python3 -m pytest tests_stub.py -q
+```
 
 ### `Case Study/`
 

@@ -1,0 +1,29 @@
+name: Pruebas del proyecto
+
+on:
+  pull_request:
+  push:
+    branches:
+      - correccion-final-100-pruebas
+      - main
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar pytest
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Verificar sintaxis
+        run: python -m compileall -q .
+
+      - name: Ejecutar los 100 casos
+        run: python -m pytest tests/test_gato_de_gatos.py -q

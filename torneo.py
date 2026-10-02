@@ -50,27 +50,30 @@ def jugar_partida_silenciosa(tiempo_limite: float) -> dict:
     tablero_destino = None
     movimientos_jugados: List[str] = []
 
-    inicio = time.time()
-    while True:
+    inicio = time.monotonic()
+    partida_terminada = False
+    while not partida_terminada:
         jugador = JUGADOR_X if es_turno_x else JUGADOR_O
         movimiento = mm.mejor_movimiento(tablero, tablero_destino, tiempo_limite=tiempo_limite)
         if movimiento is None:
-            break
+            partida_terminada = True
+        else:
+            movimientos_jugados.append(letra_movimiento(movimiento))
+            tablero.aplicar_movimiento(*movimiento, jugador)
+            partida_terminada = (
+                tablero.detectar_ganador_meta() is not None
+                or tablero.verificar_empate()
+            )
 
-        movimientos_jugados.append(letra_movimiento(movimiento))
-        tablero.aplicar_movimiento(*movimiento, jugador)
-
-        if tablero.detectar_ganador_meta() is not None or tablero.verificar_empate():
-            break
-
-        es_turno_x = not es_turno_x
-        tablero_destino = (movimiento[2], movimiento[3])
+            if not partida_terminada:
+                es_turno_x = not es_turno_x
+                tablero_destino = (movimiento[2], movimiento[3])
 
     return {
         "ganador": tablero.detectar_ganador_meta(),
         "num_jugadas": len(movimientos_jugados),
         "movimientos": movimientos_jugados,
-        "duracion_seg": time.time() - inicio,
+        "duracion_seg": time.monotonic() - inicio,
     }
 
 

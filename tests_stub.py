@@ -1,36 +1,17 @@
-"""
-MÓDULO: tests.py
-RESPONSABLE: Persona C
-DESCRIPCIÓN: Suite de pruebas unitarias
+"""Pruebas históricas del proyecto.
 
-Usar: python -m pytest tests.py -v
+La suite final de 100 casos está en ``tests/test_gato_de_gatos.py``. Este
+archivo se conserva porque contiene las pruebas usadas durante el desarrollo.
 
-IMPORTANTE: Estos tests deben ejecutarse después de implementar cada módulo.
-Sirven como validación de que todo funciona correctamente.
-
-Para ejecutar solo tests de un módulo:
-    pytest tests.py::test_tablero -v
-    pytest tests.py::test_minimax -v
+Uso: ``python -m pytest tests_stub.py -v``.
 """
 
 import pytest
 from config import *
 import tablero as tb
-
-try:
-    import movimientos as mov
-except ImportError:
-    mov = None
-
-try:
-    import minimax as mm
-except ImportError:
-    mm = None
-
-try:
-    import evaluador as ev
-except ImportError:
-    ev = None
+import movimientos as mov
+import minimax as mm
+import evaluador as ev
 
 
 # ===== TESTS DEL MÓDULO TABLERO =====
@@ -123,8 +104,6 @@ class TestTablero:
 class TestMovimientos:
     """Tests para movimientos.py"""
 
-    pytestmark = pytest.mark.skipif(mov is None, reason="movimientos.py todavía no está implementado")
-
     def test_movimientos_primer_turno(self):
         """En el primer turno, todos los 81 movimientos son válidos."""
         tablero = tb.Tablero()
@@ -162,8 +141,6 @@ class TestMovimientos:
 
 class TestEvaluador:
     """Tests para evaluador.py"""
-
-    pytestmark = pytest.mark.skipif(ev is None, reason="evaluador.py todavía no está implementado")
 
     def test_evaluar_tablero_vacio(self):
         """Tablero vacío debería tener puntuación cercana a 0."""
@@ -211,8 +188,6 @@ def _llenar_mini_empate(tablero, fila_meta, col_meta, invertir=False):
 
 class TestMinimax:
     """Tests para minimax.py"""
-
-    pytestmark = pytest.mark.skipif(mm is None, reason="minimax.py todavía no está implementado")
 
     def test_minimax_encuentra_ganadora(self):
         """Minimax debería encontrar y ejecutar ganadora inmediata."""
@@ -275,11 +250,6 @@ class TestMinimax:
 class TestIntegracion:
     """Tests que verifican que todo funciona junto."""
 
-    pytestmark = pytest.mark.skipif(
-        mov is None or mm is None,
-        reason="movimientos.py y/o minimax.py todavía no están implementados",
-    )
-
     def test_juego_ai_vs_ai(self):
         """Simula un juego IA vs IA sin crashes."""
         tablero = tb.Tablero()
@@ -287,8 +257,9 @@ class TestIntegracion:
         tablero_destino = None
         pasos = 0
         max_pasos = 200  # Máximo para evitar loops infinitos
+        partida_terminada = False
         
-        while pasos < max_pasos:
+        while pasos < max_pasos and not partida_terminada:
             # Obtener movimiento
             movimiento = mm.mejor_movimiento(
                 tablero, 
@@ -297,30 +268,22 @@ class TestIntegracion:
             )
             
             if movimiento is None:
-                # No hay movimientos válidos
-                break
-            
-            fila_meta, col_meta, fila_mini, col_mini = movimiento
-            jugador = 'X' if es_turno_x else 'O'
-            
-            # Aplicar movimiento
-            tablero.aplicar_movimiento(fila_meta, col_meta, fila_mini, col_mini, jugador)
-            
-            # Verificar fin de juego
-            ganador = tablero.detectar_ganador_meta()
-            if ganador:
-                assert ganador in (JUGADOR_X, JUGADOR_O)
-                break
-            
-            if tablero.verificar_empate():
-                break
-            
-            # Siguiente turno
-            es_turno_x = not es_turno_x
-            tablero_destino = (fila_mini, col_mini)
-            pasos += 1
+                partida_terminada = True
+            else:
+                fila_meta, col_meta, fila_mini, col_mini = movimiento
+                jugador = 'X' if es_turno_x else 'O'
+                tablero.aplicar_movimiento(fila_meta, col_meta, fila_mini, col_mini, jugador)
+
+                ganador = tablero.detectar_ganador_meta()
+                if ganador is not None:
+                    assert ganador in (JUGADOR_X, JUGADOR_O)
+                partida_terminada = ganador is not None or tablero.verificar_empate()
+
+                if not partida_terminada:
+                    es_turno_x = not es_turno_x
+                    tablero_destino = (fila_mini, col_mini)
+                pasos += 1
         
-        # TODO: Verificar que el juego terminó sin crashes
         assert pasos > 0  # Se jugó al menos 1 movimiento
     
     def test_movimientos_siempre_validos(self):
@@ -328,16 +291,12 @@ class TestIntegracion:
         tablero = tb.Tablero()
         tablero_destino = None
         pasos = 0
+        partida_terminada = False
         
-        while pasos < 100:
+        while pasos < 100 and not partida_terminada:
             movimientos = mov.movimientos_validos(tablero, tablero_destino)
-            
-            # TODO: Verificar que hay al menos un movimiento
             assert len(movimientos) > 0, "No hay movimientos disponibles"
-            
-            if len(movimientos) == 0:
-                break
-            
+
             # Jugar movimiento aleatorio
             import random
             movimiento = random.choice(movimientos)
@@ -349,11 +308,12 @@ class TestIntegracion:
             # El invariante ("siempre hay movimiento válido") solo aplica
             # mientras el juego sigue: una vez que gana alguien o empata,
             # movimientos_validos() retorna [] correctamente.
-            if tablero.detectar_ganador_meta() is not None or tablero.verificar_empate():
-                break
-
-            # Siguiente restricción
-            tablero_destino = (fila_mini, col_mini)
+            partida_terminada = (
+                tablero.detectar_ganador_meta() is not None
+                or tablero.verificar_empate()
+            )
+            if not partida_terminada:
+                tablero_destino = (fila_mini, col_mini)
             pasos += 1
 
 
