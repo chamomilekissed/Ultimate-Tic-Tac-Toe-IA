@@ -1,7 +1,7 @@
 """
 CASO DE REGRESIÓN: Juego 1 (Humano vs IA) — jugada 30-31, Campo E
 
-Contexto (ver "Juego 1.md" en esta misma carpeta):
+Contexto (ver ``juego_01.md`` en esta misma carpeta):
 En la partida real, X (humano) construyó una victoria en el Campo E
 (el centro del meta-tablero) mientras O (IA) no defendía. El análisis
 encontró un bug real en evaluador.py: evaluar_bifurcaciones(),
@@ -26,7 +26,7 @@ que no ganarlo (jugada "Ec"), tanto en evaluación estática (profundidad
 0) como en la posición previa a la jugada.
 
 Uso:
-    python3 "Case Study/regresion_juego1_campo_e.py"
+    python3 casos_de_estudio/regresion_juego_01_campo_e.py
 """
 
 import os
@@ -34,12 +34,12 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import CAMPOS, POSICIONES_MINI, INDICES_INVERSOS, INDICES_MINI_INVERSOS, JUGADOR_X, JUGADOR_O
-import tablero as tb
-import movimientos as mov
-import evaluador as ev
+from src.config import CAMPOS, POSICIONES_MINI, INDICES_INVERSOS, INDICES_MINI_INVERSOS, JUGADOR_X, JUGADOR_O
+from src import tablero as tb
+from src import movimientos as mov
+from src import evaluador as ev
 
-# Secuencia compacta de la partida real (Juego 1.md), movidas 1-29:
+# Secuencia compacta de la partida real (juego_01.md), movidas 1-29:
 # todo lo jugado ANTES de que O decida la jugada 30 ("Ge").
 SECUENCIA_HASTA_JUGADA_29 = """
 X: Ac

@@ -8,12 +8,12 @@ de juego y entrada/salida a través de interfaz.py. Soporta tres modos:
 humano vs humano, IA vs IA, y humano vs IA.
 """
 
-from config import *
-import tablero as tb
-import movimientos as mov
-import minimax as mm
-import interfaz as ui
-from transcripciones import RegistradorPartida
+from .config import *
+from . import tablero as tb
+from . import movimientos as mov
+from . import minimax as mm
+from . import interfaz as ui
+from .transcripciones import RegistradorPartida
 from typing import Callable, Optional, Tuple
 
 
@@ -75,7 +75,8 @@ def _ejecutar_partida(tablero: "tb.Tablero", obtener_movimiento_x: ObtenerMovimi
     cómo obtener el movimiento de X y de O (humano o IA) en cada turno.
 
     Si se da un `registrador`, cada jugada se le registra y, al terminar la
-    partida, se guarda automáticamente su transcripción en Case Study/.
+    partida, se guarda automáticamente su transcripción en
+    ``casos_de_estudio/``.
     """
     es_turno_x = True
     tablero_destino = None

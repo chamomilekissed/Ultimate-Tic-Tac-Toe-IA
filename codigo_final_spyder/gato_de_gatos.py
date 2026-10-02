@@ -457,7 +457,7 @@ def movimientos_validos(tablero: Tablero, tablero_destino: Optional[Tuple[int, i
 #
 # evaluar_posicion() combina 7 componentes ponderados (pesos en la sección
 # de CONFIGURACIÓN). Explicación detallada de cada uno, con ejemplos
-# numéricos, en HEURISTICA.md (documento aparte del proyecto).
+# numéricos, en documentacion/heuristica.md.
 
 def contar_2_en_linea(tablero_3x3: List[List[Optional[str]]], jugador: str) -> int:
     """

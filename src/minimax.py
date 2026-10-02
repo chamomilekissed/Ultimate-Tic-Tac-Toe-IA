@@ -25,10 +25,10 @@ Optimizaciones implementadas:
 import random
 import time
 from typing import Optional, Tuple, Dict, List
-from config import *
-import tablero as tb
-import movimientos as mov
-import evaluador as ev
+from .config import *
+from . import tablero as tb
+from . import movimientos as mov
+from . import evaluador as ev
 
 
 # ===== TRANSPOSITION TABLES (CACHE GLOBAL) =====

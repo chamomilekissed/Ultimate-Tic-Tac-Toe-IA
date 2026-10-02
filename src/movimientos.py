@@ -6,9 +6,9 @@ DESCRIPCIÓN: Generación de movimientos válidos
 Genera lista de movimientos legales según las reglas del juego.
 """
 
-from config import *
+from .config import *
 from typing import List, Tuple, Optional
-import tablero as tb
+from . import tablero as tb
 
 
 def movimientos_validos_mini(tablero_3x3: List[List[Optional[str]]]) -> List[Tuple[int, int]]:

@@ -3,15 +3,15 @@
 La suite final de 100 casos está en ``tests/test_gato_de_gatos.py``. Este
 archivo se conserva porque contiene las pruebas usadas durante el desarrollo.
 
-Uso: ``python -m pytest tests_stub.py -v``.
+Uso: ``python -m pytest tests/test_regresion_historica.py -v``.
 """
 
 import pytest
-from config import *
-import tablero as tb
-import movimientos as mov
-import minimax as mm
-import evaluador as ev
+from src.config import *
+from src import tablero as tb
+from src import movimientos as mov
+from src import minimax as mm
+from src import evaluador as ev
 
 
 # ===== TESTS DEL MÓDULO TABLERO =====

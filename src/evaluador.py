@@ -13,9 +13,9 @@ Especificación:
 - Escala: -10000 a +10000 (reservados para ganadoras/perdedoras)
 """
 
-from config import *
+from .config import *
 from typing import List, Optional, Tuple
-import tablero as tb
+from . import tablero as tb
 
 
 def contar_2_en_linea(tablero_3x3: List[List[Optional[str]]], jugador: str) -> int:

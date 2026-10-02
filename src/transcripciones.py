@@ -1,7 +1,7 @@
 """
 MODULO: transcripciones.py
 DESCRIPCION: Genera automaticamente la transcripcion de una partida en el
-mismo formato Markdown usado en "Case Study/" (tabla de jugadas +
+mismo formato Markdown usado en ``casos_de_estudio/`` (tabla de jugadas +
 estadisticas de la IA + evento por jugada + meta-tablero final + secuencia
 compacta), para no tener que armarla a mano despues de cada partida.
 
@@ -12,10 +12,15 @@ guardar() para escribir el archivo .md.
 
 import os
 import re
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from config import INDICES_INVERSOS, INDICES_MINI_INVERSOS, JUGADOR_X, JUGADOR_O, VALOR_GANADOR
-import tablero as tb
+from .config import INDICES_INVERSOS, INDICES_MINI_INVERSOS, JUGADOR_X, JUGADOR_O, VALOR_GANADOR
+from . import tablero as tb
+
+
+RAIZ_PROYECTO = Path(__file__).resolve().parents[1]
+CARPETA_CASOS = RAIZ_PROYECTO / "casos_de_estudio"
 
 Movimiento = Tuple[int, int, int, int]
 
@@ -46,11 +51,11 @@ def _formato_estadisticas(estadisticas: Optional[dict]) -> str:
 
 
 def _siguiente_numero_juego(carpeta: str) -> int:
-    """Encuentra el siguiente numero de 'Juego N' disponible, revisando los archivos ya existentes en la carpeta."""
+    """Encuentra el siguiente número ``juego_NN`` disponible."""
     maximo = 0
     if os.path.isdir(carpeta):
         for nombre in os.listdir(carpeta):
-            coincidencia = re.match(r'Juego (\d+)', nombre)
+            coincidencia = re.match(r'juego_(\d+)', nombre)
             if coincidencia:
                 maximo = max(maximo, int(coincidencia.group(1)))
     return maximo + 1
@@ -166,16 +171,15 @@ class RegistradorPartida:
 
         return "\n".join(lineas) + "\n"
 
-    def guardar(self, carpeta: str = "Case Study") -> str:
+    def guardar(self, carpeta: str = str(CARPETA_CASOS)) -> str:
         """
         Genera el markdown y lo guarda con el siguiente numero disponible
-        ("Juego N.md", sin tildes ni tipografia especial en el nombre del
-        archivo). Retorna la ruta donde se guardo.
+        (``juego_NN.md``). Retorna la ruta donde se guardó.
         """
         os.makedirs(carpeta, exist_ok=True)
         siguiente = _siguiente_numero_juego(carpeta)
         titulo = f"Juego {siguiente}"
-        ruta = os.path.join(carpeta, f"{titulo}.md")
+        ruta = os.path.join(carpeta, f"juego_{siguiente:02d}.md")
         with open(ruta, "w", encoding="utf-8") as archivo:
             archivo.write(self.generar_markdown(titulo))
         return ruta

@@ -6,7 +6,8 @@ numéricos reales. Está pensado para quien necesite entender, defender o
 seguir ajustando la heurística — incluyendo la historia de un bug real que
 encontramos y cómo se corrigió.
 
-Código fuente: [`evaluador.py`](evaluador.py). Pesos: [`config.py`](config.py).
+Código fuente: [`src/evaluador.py`](../src/evaluador.py). Pesos:
+[`src/config.py`](../src/config.py).
 
 ---
 
@@ -426,7 +427,7 @@ ajuste sistemático (ver sección 9).
 
 ## 6. Ejemplo completo paso a paso
 
-Tomado de una posición real analizada en `Case Study/Juego 1.md`: X está a
+Tomado de una posición real analizada en `casos_de_estudio/juego_01.md`: X está a
 punto de completar el Campo E (el centro) con la jugada `Eg`, contra la
 alternativa `Ec` (que no gana nada). Con los pesos **actuales**:
 
@@ -467,7 +468,7 @@ Puedes reproducir este ejemplo exacto (y verificar que no se rompa en el
 futuro) con:
 
 ```bash
-python3 "Case Study/regresion_juego1_campo_e.py"
+python casos_de_estudio/regresion_juego_01_campo_e.py
 ```
 
 ---
@@ -487,13 +488,15 @@ imprime el desglose completo antes de retornar:
 imprimir cada una inundaría la terminal y haría la búsqueda mucho más
 lenta. Es una herramienta exclusivamente para diagnóstico manual: reconstruir
 una posición específica y ver exactamente qué está "pensando" el evaluador
-ahí, como se hizo en `Case Study/Juego 1.md` y `Juego 2.md`.
+ahí, como se hizo en `casos_de_estudio/juego_01.md` y
+`casos_de_estudio/juego_02_ia_vs_ia.md`.
 
 ---
 
 ## 8. Un bug real que tuvo esta heurística
 
-Durante el análisis de `Juego 1.md`, encontramos que `evaluar_bifurcaciones`,
+Durante el análisis de `casos_de_estudio/juego_01.md`, encontramos que
+`evaluar_bifurcaciones`,
 `evaluar_defensa` y `evaluar_mini_tableros` **excluían** los mini-tableros
 ya decididos (`if not tablero.es_mini_tablero_disponible(...): continue`).
 El resultado: en el instante en que un jugador **completaba** la victoria
@@ -509,7 +512,7 @@ mini-tableros decididos (ganar un tablero no borra su contenido real, solo
 fija `meta_tablero`), y subir `PESO_POSICIONES_CLAVE` de 5 a 7 para que la
 señal de "poseer" un campo importante pese lo suficiente. El ejemplo de la
 sección 6 usa los valores **después** de este fix. Detalle completo en
-`Case Study/Juego 1.md`.
+`casos_de_estudio/juego_01.md`.
 
 ---
 

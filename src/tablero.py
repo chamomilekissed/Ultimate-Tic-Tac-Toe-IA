@@ -7,7 +7,7 @@ Este archivo define cómo se representa el estado del juego internamente.
 CRÍTICO: Debe ser RÁPIDO - minimax lo llama miles de veces.
 """
 
-from config import *
+from .config import *
 from typing import Optional, List, Tuple
 
 

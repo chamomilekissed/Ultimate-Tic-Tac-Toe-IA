@@ -1,9 +1,9 @@
 Este es **Juego 3**, la primera partida jugada (IA vs IA) después de integrar las
-mejoras portadas de `gato_de_gatos.py`: valores terminales ajustados por
+mejoras integradas en `codigo_final_spyder/gato_de_gatos.py`: valores terminales ajustados por
 profundidad, presupuesto de tiempo adaptativo por etapa, PV move ordering,
 corte anticipado ante victoria forzada, el nuevo componente de heurística
 `evaluar_amenaza_destino`, y las estadísticas de búsqueda (`ultimas_estadisticas`)
-que `main.py` ahora imprime después de cada jugada de la IA.
+que `src/main.py` ahora imprime después de cada jugada de la IA.
 
 A diferencia de los Juegos 1 y 2 (que analizaban un bug), este caso documenta
 **cómo se ve la instrumentación nueva en acción**, con presupuestos de tiempo

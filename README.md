@@ -1,237 +1,274 @@
 # Gato de Gatos — Ultimate Tic-Tac-Toe con IA
 
-Implementación en Python de Ultimate Tic-Tac-Toe (Gato de Gatos) con un jugador
-artificial basado en Minimax + Poda Alfa-Beta. Soporta humano vs humano, humano
-vs IA e IA vs IA.
+Este proyecto implementa **Gato de Gatos** en Python. Se puede jugar entre dos
+personas, observar una partida IA contra IA o jugar contra una IA que usa
+**Minimax con poda alfa-beta**.
 
----
+La documentación está escrita para que primero se entienda la idea general y,
+después, se puedan consultar los detalles técnicos necesarios para explicar el
+proyecto.
 
-## Estructura del proyecto
+## Qué archivo debo usar
 
-```
-Gato/
-├── CODIGO_FINAL_ENTREGA/
-│   └── gato_de_gatos.py Archivo único para abrir en Spyder o entregar
-├── config.py         Constantes globales: símbolos, tamaños, pesos del
-│                      evaluador, presupuestos de tiempo, líneas de victoria
-├── tablero.py         Clase Tablero: estado del juego y reglas básicas
-├── movimientos.py     Generación de movimientos legales
-├── evaluador.py        Función heurística multi-componente
-├── minimax.py         Minimax + Alpha-Beta + Iterative Deepening
-├── interfaz.py        Entrada/salida de terminal (formato "Gc")
-├── main.py            Loop principal — los 3 modos de juego
-├── tests/
-│   └── test_gato_de_gatos.py  Suite final de exactamente 100 casos
-├── tests_stub.py       20 pruebas históricas de compatibilidad
-└── Case Study/         Partidas jugadas, análisis de bugs y casos de regresión
-```
+| Necesidad | Archivo o comando |
+|---|---|
+| Abrir el proyecto en Spyder o entregar un solo archivo | `codigo_final_spyder/gato_de_gatos.py` |
+| Estudiar o modificar el programa por módulos | `python -m src.main` |
+| Ejecutar las 100 pruebas finales | `python -m pytest tests/test_gato_de_gatos.py -q` |
+| Consultar la versión anterior | `version_anterior/gato_de_gatos_anterior.py` |
 
-Cada módulo se apoya únicamente en los de arriba en esta lista (`tablero.py`
-no depende de nadie; `main.py` depende de todos). `config.py` es la única
-fuente de constantes — ningún otro archivo hardcodea pesos, símbolos ni tamaños.
+> La versión oficial actual es `codigo_final_spyder/gato_de_gatos.py`. La
+> carpeta `version_anterior/` se conserva únicamente para comparar el proceso
+> de mejora; no es la versión que se debe entregar.
 
----
+## Cómo ejecutar el juego
 
-## Representación del estado (`tablero.py`)
+Se necesita Python 3.10 o posterior. El juego no requiere bibliotecas externas.
 
-La clase `Tablero` guarda:
+### En Spyder
 
-- `mini_tableros`: lista de 9 mini-tableros 3×3 (`mini_tableros[fila_meta * 3 + col_meta]`),
-  cada casilla es `'X'`, `'O'` o `None`.
-- `meta_tablero`: matriz 3×3 con el resultado de cada mini-tablero — `'X'`,
-  `'O'`, `'EMPATE'` o `None` (todavía en juego).
-- `historial`: pila de movimientos aplicados, usada por `deshacer_movimiento()`
-  para que minimax explore variaciones sin copiar el tablero en cada nodo.
+1. Abrir `codigo_final_spyder/gato_de_gatos.py`.
+2. Presionar **Run** o **Ejecutar**.
+3. Elegir uno de los tres modos de juego.
 
-Métodos clave: `aplicar_movimiento`, `deshacer_movimiento`, `obtener_ganador_mini`,
-`detectar_ganador_meta`, `verificar_empate`, `es_mini_tablero_disponible`,
-`copiar()` (copia profunda, sin historial) y `get_estado_hash()` (hash rápido
-del estado completo, usado como clave de la Transposition Table).
+### Desde una terminal
 
-### Convención de coordenadas
-
-```
-Meta-tablero (campos):     Dentro de cada mini-tablero (posiciones):
-  A | B | C                  a | b | c
-  D | E | F                  d | e | f
-  G | H | I                  g | h | i
-```
-
-Un movimiento se escribe como dos letras, `Campo+Posición` — por ejemplo
-`Gc` = jugar en el mini-tablero G, casilla c. La posición jugada determina el
-mini-tablero **obligatorio** para el rival en su siguiente turno (si ese
-mini-tablero ya está decidido, el rival puede jugar en cualquier mini-tablero
-disponible).
-
----
-
-## Generación de movimientos (`movimientos.py`)
-
-`movimientos_validos(tablero, tablero_destino)` implementa la regla central
-del juego:
-
-- `tablero_destino is None` (primer turno) o apunta a un mini-tablero ya
-  decidido → el jugador puede elegir cualquier mini-tablero disponible.
-- En cualquier otro caso → solo puede jugar en ese mini-tablero.
-
----
-
-## Función heurística (`evaluador.py`)
-
-`evaluar_posicion(tablero, es_maximizando, tablero_destino=None, debug=False)`
-retorna una puntuación en perspectiva absoluta de X (positivo = favorece a X,
-negativo = favorece a O), en el rango `[VALOR_PERDEDOR, VALOR_GANADOR]`
-(±10000). Primero revisa los casos terminales (`detectar_ganador_meta`,
-`verificar_empate`); si el juego sigue, suma 7 componentes ponderados:
-
-| Componente | Peso (`config.py`) | Qué mide |
-|---|---|---|
-| `evaluar_progreso_meta` | `PESO_PROGRESO_META_TABLERO` (10) | Amenazas de 2-en-línea a nivel **meta**-tablero |
-| `evaluar_bifurcaciones` | `PESO_AMENAZAS_BIFURCACIONES` (7) | Mini-tableros con 2+ amenazas simultáneas (fork) |
-| `evaluar_defensa` | `PESO_DEFENSA_CRITICA` (6) | Amenazas totales dispersas en todos los mini-tableros |
-| `evaluar_control_posiciones` | `PESO_POSICIONES_CLAVE` (7) | Campos ya ganados, ponderados por `IMPORTANCIA_CAMPO` (centro > esquina > borde) |
-| `evaluar_mini_tableros` | `PESO_CONTROL_LOCAL` (3) | Posesión local (casillas + amenazas) de cada mini-tablero |
-| `evaluar_amenaza_destino` | `PESO_AMENAZA_DESTINO` (8) | ¿El mini-tablero al que se manda al rival es un regalo o una trampa? |
-| `evaluar_amenaza_destino_futura` | `PESO_AMENAZA_DESTINO_FUTURA` (4) | Un nivel adicional: ¿a dónde podría mandar después al rival? |
-
-Con `debug=True` imprime el desglose completo (crudo y ponderado) de cada
-componente — pensado para diagnóstico manual, **no** se usa dentro de la
-búsqueda (inundaría la terminal y la haría mucho más lenta).
-
-### Un bug real que encontramos y corregimos
-
-Durante el análisis de una partida (ver `Case Study/Juego 1.md`), descubrimos
-que `evaluar_bifurcaciones`, `evaluar_defensa` y `evaluar_mini_tableros`
-excluían los mini-tableros ya decididos. Como resultado, **ganar** un
-mini-tablero hacía que su señal de dominio local desapareciera de golpe, sin
-compensación suficiente — la heurística literalmente puntuaba peor completar
-una victoria que dejarla a medias. El fix (evaluar siempre los 9
-mini-tableros) y el caso de regresión que lo verifica están documentados en
-`Case Study/`.
-
----
-
-## Búsqueda: Minimax + Alpha-Beta (`minimax.py`)
-
-### Algoritmo base
-
-`minimax(tablero, profundidad, alfa, beta, es_maximizando, tablero_destino, cache, nivel=0)`
-es la búsqueda recursiva estándar: X maximiza, O minimiza, con poda
-alfa-beta (el ciclo continúa únicamente mientras `alfa < beta`). Como la búsqueda muta el tablero real
-directamente (`aplicar_movimiento` / `deshacer_movimiento`) para no copiar
-en cada nodo, cada llamada recursiva está envuelta en `try/finally` — así el
-tablero siempre queda restaurado aunque la búsqueda se aborte a mitad de
-camino (ver "Control de tiempo" abajo).
-
-### Optimizaciones
-
-- **Valores terminales ajustados por profundidad.** Una victoria vale
-  `VALOR_GANADOR - nivel` y una derrota `VALOR_PERDEDOR + nivel`, donde
-  `nivel` es la distancia (en jugadas) desde la raíz de la búsqueda. Esto
-  hace que la IA prefiera ganar en el menor número de jugadas posible, y que
-  retrase una derrota inevitable en vez de acelerarla.
-- **Transposition Table** (`TranspositionTable`, clave = `get_estado_hash()`
-  + profundidad + destino + turno): cachea posiciones repetidas para no
-  recalcularlas. Cada entrada indica si contiene un valor exacto, una cota
-  inferior o una cota superior, para reutilizar correctamente los cortes de
-  alfa-beta. Tiene un límite de tamaño (`LIMITE_ESTADOS_MEMORIA`) para no
-  crecer sin control. **Se reinicia en cada profundidad** del iterative
-  deepening — no se reutiliza entre pasadas, porque el valor terminal ahora
-  depende de `nivel`, que no es el mismo en una pasada con
-  `profundidad_inicial=3` que en una con `profundidad_inicial=7` (ver
-  docstring de `minimax()` para el detalle).
-- **Move ordering.** `ordenar_movimientos()` prueba primero: (0) la jugada
-  preferida de la profundidad anterior del iterative deepening ("PV move
-  ordering" — suele podar mucho más), (1) jugadas que ganan un mini-tablero
-  de inmediato, (2) jugadas que bloquean una victoria del rival, (3) el
-  resto, ordenado por `IMPORTANCIA_CAMPO`.
-- **Iterative Deepening con presupuesto adaptativo.** `mejor_movimiento()`
-  busca profundidad 1, 2, 3... conservando el mejor movimiento de la última
-  profundidad *completa*. El presupuesto de tiempo se ajusta según cuántas
-  casillas quedan disponibles (`_calcular_presupuesto`): poco en la apertura
-  (mucho ramaje, no vale la pena), más cerca del final (decisiones más
-  críticas) — siempre acotado por el `tiempo_limite` recibido, nunca lo
-  excede. Se detiene antes si ya se probó una victoria o derrota forzada.
-- **Control de tiempo con corte duro.** Además del chequeo entre
-  profundidades, hay un deadline absoluto revisado en cada nodo; si se
-  cumple, `minimax()` lanza `TiempoAgotado` y la búsqueda se aborta
-  limpiamente (gracias al `try/finally` mencionado arriba) sin dejar
-  movimientos "fantasma" aplicados al tablero real.
-- **Estadísticas.** Cada llamada a `mejor_movimiento()` actualiza
-  `minimax.ultimas_estadisticas` (nodos visitados, profundidad alcanzada,
-  valor final, segundos usados, presupuesto) — no forma parte del valor de
-  retorno para no romper a quienes solo esperan la jugada; `main.py` las lee
-  para mostrarlas después de cada jugada de la IA.
-
-`mejor_movimiento(tablero, tablero_destino, tiempo_limite=TIEMPO_LIMITE)` es
-el punto de entrada público — infiere de quién es el turno contando marcas
-en el tablero (no recibe `jugador` como parámetro) y retorna la tupla
-`(fila_meta, col_meta, fila_mini, col_mini)` del mejor movimiento encontrado.
-
----
-
-## Interfaz y loop principal (`interfaz.py`, `main.py`)
-
-`interfaz.py` centraliza toda la entrada/salida: lectura y validación de
-movimientos en formato `Campo+Posición`, impresión del tablero (las casillas
-vacías muestran su letra, para que el jugador sepa qué escribir), y mensajes
-de estado. En Humano vs IA, X siempre comienza: elegir X significa que
-comienza la persona y elegir O significa que comienza la IA usando X.
-
-`main.py` expone tres modos, todos construidos sobre el mismo loop de turnos
-(`_ejecutar_partida`, que recibe cómo obtener el movimiento de X y de O):
+Versión organizada por módulos:
 
 ```bash
-python3 main.py
-# 1. Humano vs Humano   -> jugar()
-# 2. IA vs IA           -> jugar_ia_vs_ia()
-# 3. Humano vs IA       -> jugar_humano_vs_ia()  (elige X u O)
+python -m src.main
 ```
 
-Para Spyder o para la entrega en un solo archivo:
+Versión de un solo archivo:
 
 ```bash
-python3 CODIGO_FINAL_ENTREGA/gato_de_gatos.py
+python codigo_final_spyder/gato_de_gatos.py
 ```
 
----
+El menú ofrece:
 
-## Testing
+1. Humano contra humano.
+2. IA contra IA.
+3. Humano contra IA.
+
+## Regla importante sobre X y O
+
+**X siempre hace el primer movimiento.** La pregunta del programa no decide
+quién comienza por separado; pregunta qué símbolo quiere usar la persona:
+
+- Si elige **X**, comienza la persona.
+- Si elige **O**, la IA usa X y comienza la partida.
+
+Así se respeta la regla normal del juego y se evita pedir dos decisiones que
+podrían contradecirse.
+
+## Cómo se escribe un movimiento
+
+El tablero grande contiene nueve mini-tableros:
+
+```text
+A | B | C
+D | E | F
+G | H | I
+```
+
+Cada mini-tablero también tiene nueve posiciones:
+
+```text
+a | b | c
+d | e | f
+g | h | i
+```
+
+Un movimiento usa dos letras: primero el campo y después la posición. Por
+ejemplo, `Gc` significa **campo G, posición c**.
+
+La posición elegida determina el campo donde deberá jugar el oponente. Si ese
+campo ya está ganado o empatado, el oponente puede escoger cualquier campo que
+siga abierto.
+
+## Cómo está organizado el proyecto
+
+```text
+Ultimate-Tic-Tac-Toe-IA/
+├── README.md                         Guía principal
+├── src/                              Código modular actual
+│   ├── config.py                     Constantes y pesos
+│   ├── tablero.py                    Estado y reglas del tablero
+│   ├── movimientos.py                Movimientos permitidos
+│   ├── evaluador.py                  Función heurística
+│   ├── minimax.py                    Búsqueda de la IA
+│   ├── interfaz.py                   Entrada y salida en terminal
+│   ├── main.py                       Modos de juego y turnos
+│   ├── transcripciones.py            Registro de partidas
+│   └── torneo.py                     Partidas automáticas IA vs IA
+├── codigo_final_spyder/              Versión actual en un solo archivo
+├── tests/                            Pruebas finales e históricas
+├── documentacion/                    Explicaciones técnicas y cambios
+├── casos_de_estudio/                 Partidas analizadas y regresiones
+├── resultados/                       Resultados generados por torneos
+├── version_anterior/                 Código anterior conservado como referencia
+└── .github/workflows/                Pruebas automáticas de GitHub
+```
+
+Cada carpeta tiene su propio `README.md` para explicar qué contiene y cómo se
+usa.
+
+## Cómo funciona el código
+
+Una partida sigue este ciclo:
+
+1. `main.py` identifica a quién le toca jugar.
+2. `movimientos.py` obtiene únicamente las jugadas legales.
+3. Si juega una persona, `interfaz.py` convierte un texto como `Gc` en
+   coordenadas internas.
+4. Si juega la IA, `minimax.py` analiza las respuestas posibles y pide a
+   `evaluador.py` una puntuación cuando no puede buscar más profundo.
+5. `tablero.py` aplica el movimiento y actualiza el resultado del
+   mini-tablero correspondiente.
+6. La posición jugada se convierte en el destino obligatorio del siguiente
+   turno.
+7. El ciclo termina cuando X u O gana tres campos en línea o cuando ya no hay
+   movimientos.
+
+### Representación interna
+
+La clase `Tablero` guarda tres elementos principales:
+
+- `mini_tableros`: los nueve tableros pequeños de 3 × 3.
+- `meta_tablero`: el resultado de cada campo: `X`, `O`, `EMPATE` o `None`.
+- `historial`: movimientos anteriores que permiten aplicar y deshacer jugadas
+  durante Minimax sin copiar todo el tablero en cada nodo.
+
+En el código modular, un movimiento se representa con cuatro números:
+
+```python
+(fila_meta, columna_meta, fila_mini, columna_mini)
+```
+
+Por ejemplo, `Gc` se convierte en `(2, 0, 0, 2)`.
+
+## Cómo decide la IA
+
+### Minimax
+
+Minimax supone que ambos jugadores escogerán su mejor jugada:
+
+- X es el jugador **maximizador** y busca el valor más alto.
+- O es el jugador **minimizador** y busca el valor más bajo.
+
+La IA simula una jugada, después la mejor respuesta del rival y continúa de
+forma recursiva. Una victoria de X se acerca a `+10000`; una victoria de O se
+acerca a `-10000`. También se toma en cuenta la profundidad para preferir una
+victoria rápida y retrasar una derrota inevitable.
+
+### Poda alfa-beta
+
+`alfa` guarda la mejor opción conocida para X y `beta` la mejor opción conocida
+para O. Cuando una rama ya no puede mejorar el resultado, se deja de explorar.
+Esto reduce el trabajo sin cambiar la decisión que produciría Minimax.
+
+### Profundización iterativa y tiempo
+
+La búsqueda prueba profundidad 1, después 2, después 3 y así sucesivamente.
+Si se agota el tiempo, conserva el mejor movimiento de la última profundidad
+terminada. El presupuesto cambia según la etapa de la partida y nunca supera
+el límite recibido.
+
+### Tabla de transposiciones
+
+La clase `TranspositionTable` evita recalcular posiciones repetidas. Cada
+entrada indica si el valor es:
+
+- exacto;
+- una cota inferior; o
+- una cota superior.
+
+Esta distinción es necesaria porque una rama cortada por alfa-beta no siempre
+produce un valor exacto.
+
+## Función heurística
+
+Cuando no es posible revisar la partida completa, `evaluar_posicion()` estima
+qué jugador tiene ventaja. Una puntuación positiva favorece a X y una negativa
+favorece a O.
+
+| Componente | Qué observa | Peso |
+|---|---|---:|
+| Progreso meta | Amenazas para ganar el tablero completo | 10 |
+| Bifurcaciones | Dos o más amenazas simultáneas | 7 |
+| Defensa | Amenazas locales de ambos jugadores | 6 |
+| Posiciones clave | Centro, esquinas y bordes ganados | 7 |
+| Control local | Casillas y amenazas dentro de los campos | 3 |
+| Destino inmediato | Si se manda al rival a un campo peligroso | 8 |
+| Destino futuro | A qué campo podría mandar después al rival | 4 |
+
+La explicación completa y los ejemplos numéricos están en
+[`documentacion/heuristica.md`](documentacion/heuristica.md).
+
+## Qué cambió respecto de la versión anterior
+
+La versión anterior se conserva para documentar el avance, no porque esté
+mal conservarla. La versión actual cambia principalmente lo siguiente:
+
+| Antes | Ahora |
+|---|---|
+| Un archivo procedural con listas y funciones | Código modular con una clase `Tablero`, más un archivo único sincronizado |
+| Se preguntaba quién comenzaba | Se pregunta si la persona quiere X u O; X siempre comienza |
+| Un modo principal de humano contra sistema | Tres modos: humano vs humano, IA vs IA y humano vs IA |
+| Pruebas básicas dentro del mismo archivo | 100 pruebas finales y 20 pruebas históricas con `pytest` |
+| Documentos y código mezclados en la raíz | Carpetas separadas y nombres consistentes |
+| Tabla de memoria limitada a resultados completos | Tabla que además identifica valores exactos y cotas de alfa-beta |
+| Validaciones concentradas en la interfaz | Reglas validadas también por el propio objeto `Tablero` |
+
+El análisis detallado, función por función, está en
+[`documentacion/cambios_version_anterior_a_actual.md`](documentacion/cambios_version_anterior_a_actual.md).
+
+## Pruebas
+
+Instalar la única dependencia de desarrollo:
 
 ```bash
-python3 -m pytest tests/test_gato_de_gatos.py -q
+python -m pip install -r requirements-dev.txt
 ```
 
-La suite final contiene exactamente **100 casos**. Prueba coordenadas, las
-ocho líneas de victoria para X y O, meta-tablero, destinos forzados, empates,
-aplicar/deshacer, simetría de la heurística, victorias inmediatas de Minimax,
-límite de tiempo, tabla de transposiciones, una partida completa y la paridad
-entre los módulos y el archivo único. También revisa automáticamente que no
-aparezcan `break`, `continue` ni `pass` en ningún archivo Python.
-
-Las 20 pruebas históricas siguen disponibles y también deben aprobar:
+Ejecutar las 100 pruebas finales:
 
 ```bash
-python3 -m pytest tests_stub.py -q
+python -m pytest tests/test_gato_de_gatos.py -q
 ```
 
-### `Case Study/`
-
-Carpeta con partidas reales jugadas contra la IA (transcritas movimiento por
-movimiento), el análisis de por qué tomó ciertas decisiones, y casos de
-regresión ejecutables que reconstruyen posiciones específicas de esas
-partidas para verificar que un bug encontrado no vuelva a aparecer:
+Ejecutar las 20 pruebas históricas:
 
 ```bash
-python3 "Case Study/regresion_juego1_campo_e.py"
+python -m pytest tests/test_regresion_historica.py -q
 ```
 
----
+Ejecutar ambas suites:
 
-## Créditos
+```bash
+python -m pytest tests -q
+```
 
-Basado en el stub del curso de Inteligencia Artificial (ITAM, Otoño 2026).
-Incorpora ideas de optimización (valores por profundidad, presupuesto de
-tiempo adaptativo, PV move ordering, componente de amenaza en destino
-forzado) adaptadas de una implementación de referencia compartida por el
-equipo, integradas sobre la estructura modular de este proyecto.
+Las pruebas revisan reglas, coordenadas, victorias, empates, destinos
+obligatorios, aplicar y deshacer movimientos, heurística, Minimax, límite de
+tiempo, tabla de transposiciones, una partida completa y equivalencia entre la
+versión modular y el archivo de Spyder.
+
+## Documentos relacionados
+
+- [`src/README.md`](src/README.md): explicación de cada módulo.
+- [`codigo_final_spyder/README.md`](codigo_final_spyder/README.md): cómo usar el archivo de entrega.
+- [`tests/README.md`](tests/README.md): distribución de los casos de prueba.
+- [`documentacion/README.md`](documentacion/README.md): índice de documentación.
+- [`casos_de_estudio/README.md`](casos_de_estudio/README.md): partidas analizadas.
+- [`version_anterior/README.md`](version_anterior/README.md): propósito del código conservado.
+
+## Estado actual
+
+- El código modular y el archivo para Spyder están sincronizados.
+- Las 100 pruebas finales y las 20 históricas deben aprobar.
+- GitHub Actions compila el proyecto y ejecuta la suite final en cada pull
+  request.
+- Los cambios de organización se preparan en una rama antes de llegar a
+  `main`.

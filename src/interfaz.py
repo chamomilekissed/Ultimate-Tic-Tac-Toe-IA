@@ -14,9 +14,9 @@ Convención del profesor:
 - Formato de movimiento: "Gc" = jugar en campo G, posición c
 """
 
-from config import *
+from .config import *
 from typing import Optional, Tuple
-import tablero as tb
+from . import tablero as tb
 
 
 def _simbolo_campo(tablero: "tb.Tablero", fila_meta: int, col_meta: int) -> str:

@@ -1,3 +1,10 @@
+# README de la versión anterior
+
+> Documento histórico. Describe el archivo conservado en
+> `version_anterior/gato_de_gatos_anterior.py`; no describe por completo la
+> estructura ni las validaciones de la versión actual. Para el proyecto actual,
+> consultar el [`README.md` principal](../README.md).
+
 # Ultimate-Tic-Tac-Toe-IA
 
 # Gato de Gatos con Minimax
@@ -260,6 +267,5 @@ Pruebas básicas superadas correctamente.
 
 
 ## Integrantes
-
 
 

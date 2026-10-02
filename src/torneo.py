@@ -11,10 +11,10 @@ domina" en un dato real, y como base para comparar variantes de pesos en el
 futuro (self-play con desempate aleatorio ya no repite la misma partida).
 
 Uso:
-    python3 torneo.py                    # 20 partidas, 2s por jugada
-    python3 torneo.py 30                 # 30 partidas, 2s por jugada
-    python3 torneo.py 30 1.0             # 30 partidas, 1s por jugada
-    python3 torneo.py 30 1.0 --seed 42   # reproducible (mismos desempates)
+    python3 -m src.torneo                    # 20 partidas, 2s por jugada
+    python3 -m src.torneo 30                 # 30 partidas, 2s por jugada
+    python3 -m src.torneo 30 1.0             # 30 partidas, 1s por jugada
+    python3 -m src.torneo 30 1.0 --seed 42   # reproducible
 
 Nota sobre tiempo_limite: el presupuesto real por jugada sigue acotado por
 la logica de mejor_movimiento() (adaptativo por etapa de partida, nunca
@@ -28,12 +28,16 @@ import statistics
 import sys
 import time
 import random
+from pathlib import Path
 from typing import List, Optional
 
-import tablero as tb
-import minimax as mm
-from config import JUGADOR_X, JUGADOR_O
-from transcripciones import letra_movimiento
+from . import tablero as tb
+from . import minimax as mm
+from .config import JUGADOR_X, JUGADOR_O
+from .transcripciones import letra_movimiento
+
+
+CARPETA_RESULTADOS = Path(__file__).resolve().parents[1] / "resultados"
 
 
 def jugar_partida_silenciosa(tiempo_limite: float) -> dict:
@@ -116,7 +120,8 @@ def correr_torneo(num_partidas: int, tiempo_limite: float,
     duracion_total = time.time() - inicio_torneo
 
     _reportar_resumen(resultados, duracion_total)
-    ruta_log = f"resultados_torneo_{time.strftime('%Y%m%d_%H%M%S')}.txt"
+    CARPETA_RESULTADOS.mkdir(exist_ok=True)
+    ruta_log = CARPETA_RESULTADOS / f"resultado_torneo_{time.strftime('%Y%m%d_%H%M%S')}.txt"
     _guardar_log(resultados, ruta_log, tiempo_limite)
     print(f"\nLog detallado guardado en: {ruta_log}")
 
@@ -150,7 +155,7 @@ def _reportar_resumen(resultados: List[dict], duracion_total: float) -> None:
         print("Para conclusiones mas confiables sobre ventaja de X vs O, correr 30+ partidas.")
 
 
-def _guardar_log(resultados: List[dict], ruta: str, tiempo_limite: float) -> None:
+def _guardar_log(resultados: List[dict], ruta: Path, tiempo_limite: float) -> None:
     """Guarda un log de texto plano con la secuencia de jugadas de cada partida, para poder reconstruir alguna despues si llama la atencion."""
     with open(ruta, "w", encoding="utf-8") as archivo:
         archivo.write(f"Log de torneo -- {len(resultados)} partidas, tiempo_limite={tiempo_limite}s por jugada\n\n")

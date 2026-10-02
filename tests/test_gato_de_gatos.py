@@ -18,17 +18,17 @@ import pytest
 RAIZ = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(RAIZ))
 
-import config
-import evaluador
-import interfaz
-import minimax
-import movimientos
-import tablero
+from src import config
+from src import evaluador
+from src import interfaz
+from src import minimax
+from src import movimientos
+from src import tablero
 
 
 def cargar_archivo_unico():
     """Importa el archivo de entrega sin ejecutar su menú interactivo."""
-    ruta = RAIZ / "CODIGO_FINAL_ENTREGA" / "gato_de_gatos.py"
+    ruta = RAIZ / "codigo_final_spyder" / "gato_de_gatos.py"
     especificacion = importlib.util.spec_from_file_location("gato_final", ruta)
     assert especificacion is not None
     assert especificacion.loader is not None
@@ -353,4 +353,3 @@ def test_15_sin_break_continue_ni_pass():
             if isinstance(nodo, prohibidas):
                 hallazgos.append(f"{ruta.relative_to(RAIZ)}:{nodo.lineno}")
     assert hallazgos == []
-
