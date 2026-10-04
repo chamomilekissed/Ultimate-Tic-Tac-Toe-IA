@@ -1,8 +1,7 @@
 # Gato de Gatos — Ultimate Tic-Tac-Toe con IA
 
-Este proyecto implementa **Gato de Gatos** en Python. Se puede jugar entre dos
-personas, observar una partida IA contra IA o jugar contra una IA que usa
-**Minimax con poda alfa-beta**.
+Este proyecto implementa **Gato de Gatos** en Python para enfrentar al sistema
+contra un jugador externo. La IA usa **Minimax con poda alfa-beta**.
 
 La documentación está escrita para que primero se entienda la idea general y,
 después, se puedan consultar los detalles técnicos necesarios para explicar el
@@ -45,10 +44,8 @@ Versión de un solo archivo:
 python codigo_final_spyder/gato_de_gatos.py
 ```
 
-La entrada normal abre directamente la partida requerida para el torneo. Los
-modos de demostración humano contra humano e IA contra IA siguen disponibles
-mediante las funciones de `src/main.py`, pero no retrasan la pregunta inicial
-obligatoria.
+La entrada abre directamente la partida requerida para el torneo y pregunta
+si comienza el sistema o el jugador externo.
 
 ## Regla importante sobre X y O
 
@@ -95,7 +92,7 @@ Ultimate-Tic-Tac-Toe-IA/
 │   ├── evaluador.py                  Función heurística
 │   ├── minimax.py                    Búsqueda de la IA
 │   ├── interfaz.py                   Entrada y salida en terminal
-│   ├── main.py                       Modos de juego y turnos
+│   ├── main.py                       Partida de torneo y turnos
 │   ├── transcripciones.py            Registro de partidas
 │   └── torneo.py                     Partidas automáticas IA vs IA
 ├── codigo_final_spyder/              Versión actual en un solo archivo
@@ -217,7 +214,6 @@ mal conservarla. La versión actual cambia principalmente lo siguiente:
 |---|---|
 | Un archivo procedural con listas y funciones | Código modular con una clase `Tablero`, más un archivo único sincronizado |
 | Se preguntaba qué símbolo quería la persona | Se pregunta directamente si comienza el sistema o el jugador externo |
-| Un modo principal de humano contra sistema | Tres modos: humano vs humano, IA vs IA y humano vs IA |
 | Pruebas básicas dentro del mismo archivo | 200 pruebas finales y 20 pruebas históricas con `pytest` |
 | Documentos y código mezclados en la raíz | Carpetas separadas y nombres consistentes |
 | Tabla de memoria limitada a resultados completos | Tabla que además identifica valores exactos y cotas de alfa-beta |

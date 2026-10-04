@@ -4,8 +4,7 @@ RESPONSABLE: Persona C
 DESCRIPCIÓN: Loop principal del juego
 
 Coordina la lógica del juego: inicialización, turnos, detección de fin
-de juego y entrada/salida a través de interfaz.py. Soporta tres modos:
-humano vs humano, IA vs IA, y humano vs IA.
+de juego y entrada/salida a través de interfaz.py.
 """
 
 from .config import *
@@ -112,23 +111,6 @@ def _ejecutar_partida(tablero: "tb.Tablero", obtener_movimiento_x: ObtenerMovimi
             tablero_destino = (movimiento[2], movimiento[3])
 
 
-def jugar() -> None:
-    """
-    Ejecuta un juego completo de Ultimate Tic-Tac-Toe humano vs humano.
-    """
-    registrador = RegistradorPartida("Humano vs Humano", origen_x="Humano", origen_o="Humano")
-    _ejecutar_partida(tb.Tablero(), obtener_movimiento_valido, obtener_movimiento_valido, registrador)
-
-
-def jugar_ia_vs_ia() -> None:
-    """
-    Ejecuta un juego completo de Ultimate Tic-Tac-Toe IA vs IA (minimax
-    contra sí mismo), para observar cómo juega.
-    """
-    registrador = RegistradorPartida("IA vs IA", origen_x="IA", origen_o="IA")
-    _ejecutar_partida(tb.Tablero(), _movimiento_ia, _movimiento_ia, registrador)
-
-
 def jugar_humano_vs_ia() -> None:
     """
     Ejecuta la partida de torneo entre nuestro sistema y el jugador externo.
@@ -152,18 +134,6 @@ def jugar_humano_vs_ia() -> None:
             origen_o="Jugador externo"
         )
         _ejecutar_partida(tablero, _movimiento_ia, obtener_movimiento_valido, registrador)
-
-
-def jugar_con_menu() -> None:
-    """Ofrece los tres modos de demostración; no es la entrada del torneo."""
-    opcion = ui.solicitar_modo_juego()
-
-    if opcion == "1":
-        jugar()
-    elif opcion == "2":
-        jugar_ia_vs_ia()
-    elif opcion == "3":
-        jugar_humano_vs_ia()
 
 
 if __name__ == "__main__":

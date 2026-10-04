@@ -21,13 +21,14 @@ sys.path.insert(0, str(RAIZ))
 from src import config
 from src import evaluador
 from src import interfaz
+from src import main
 from src import minimax
 from src import movimientos
 from src import tablero
 
 
 def cargar_archivo_unico():
-    """Importa el archivo de entrega sin ejecutar su menú interactivo."""
+    """Importa el archivo de entrega sin iniciar una partida."""
     ruta = RAIZ / "codigo_final_spyder" / "gato_de_gatos.py"
     especificacion = importlib.util.spec_from_file_location("gato_final", ruta)
     assert especificacion is not None
@@ -508,6 +509,14 @@ def test_24_pregunta_inicial_sistema(monkeypatch, final):
     monkeypatch.setattr("builtins.input", lambda mensaje: "s")
     assert interfaz.solicitar_primer_jugador() == "SISTEMA"
     assert final.solicitar_primer_jugador() == "SISTEMA"
+    assert not hasattr(interfaz, "solicitar_modo_juego")
+    assert not hasattr(final, "solicitar_modo_juego")
+    assert not hasattr(main, "jugar")
+    assert not hasattr(main, "jugar_ia_vs_ia")
+    assert not hasattr(main, "jugar_con_menu")
+    assert not hasattr(final, "jugar")
+    assert not hasattr(final, "jugar_ia_vs_ia")
+    assert not hasattr(final, "jugar_con_menu")
 
 
 def test_25_pregunta_inicial_externo_y_reintento(monkeypatch, final):

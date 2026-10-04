@@ -26,7 +26,6 @@ manejo de cotas de Minimax y agrega una suite de 200 pruebas.
 | Casilla vacía | Cadena vacía `""` | `None` |
 | Movimiento interno | `(mini_tablero, casilla)` | `(fila_meta, col_meta, fila_mini, col_mini)` |
 | Inicio de partida | Pregunta quién comienza | Pregunta si comienza el sistema o el jugador externo y asigna X a quien inicia |
-| Modos | Partida contra el sistema | Humano vs humano, IA vs IA y humano vs IA |
 | Heurística | Una función extensa con pesos para sistema y rival | Siete componentes separados, líneas abiertas y exclusión de campos cerrados |
 | Memoria de búsqueda | Guarda resultados completos | Distingue valor exacto, cota inferior y cota superior |
 | Tiempo | La recursión devuelve si terminó o agotó tiempo | Excepción interna `TiempoAgotado` y restauración con `try/finally` |

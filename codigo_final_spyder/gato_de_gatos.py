@@ -25,22 +25,7 @@ Los movimientos se escriben con dos caracteres "Campo+Posición":
 La casilla elegida determina el mini-tablero donde debe jugar el
 siguiente turno. Si ese mini-tablero ya está decidido (ganado o
 empatado), el siguiente jugador puede elegir cualquier mini-tablero que
-siga abierto.
-
-Algoritmo
----------
-La IA usa Minimax con poda Alfa-Beta e Iterative Deepening (busca a
-profundidad creciente hasta agotar un presupuesto de tiempo, que se
-adapta según la etapa de la partida — apertura/medio juego/final). La
-evaluación de posiciones no terminales combina 7 componentes heurísticos
-(progreso en el meta-tablero, bifurcaciones, amenazas dispersas, control
-de campos clave, posesión local, y dos niveles de "a qué mini-tablero se
-manda al rival"); ver evaluar_posicion() más abajo para el detalle de
-cada uno. evaluar_posicion() acepta un flag `debug` que imprime el
-desglose completo por componente — se usó extensamente durante el
-desarrollo para diagnosticar y corregir la heurística (se deja como
-evidencia; no se activa durante el juego normal).
-"""
+siga abierto. """
 
 import time
 from typing import Callable, Dict, List, Optional, Tuple
@@ -107,8 +92,7 @@ BONO_GANAR_MINI_TABLERO = 3
 
 # ===== Presupuesto de tiempo por etapa de partida =====
 # (según casillas vacías en mini-tableros disponibles; siempre acotado por
-# el tiempo_limite que reciba mejor_movimiento(), nunca lo excede)
-
+# el tiempo_limite que reciba mejor_movimiento())
 CASILLAS_RESTANTES_APERTURA = 55
 CASILLAS_RESTANTES_MEDIO = 25
 TIEMPO_APERTURA = 15.0
@@ -162,12 +146,12 @@ IMPORTANCIA_CAMPO = {
 
 class Tablero:
     """
-    Representa el estado del juego completo.
+    Muestra el estado del juego completo
 
     Estructura interna:
-    - meta_tablero: Array 3x3 con ganadores de mini-tableros ('X', 'O', None, 'EMPATE')
-    - mini_tableros: Array de 9 tableros 3x3 internos (índice = fila_meta * 3 + col_meta)
-    - historial: Stack de movimientos previos para deshacer
+    - meta_tablero: arreglo 3x3 con ganadores de mini-tableros ('X', 'O', None, 'EMPATE')
+    - mini_tableros: arreglo de 9 tableros 3x3 internos (índice = fila_meta * 3 + col_meta)
+    - historial: pila de movimientos previos para deshacer
     """
 
     def __init__(self):
@@ -288,7 +272,7 @@ class Tablero:
         return None
 
     def detectar_ganador_meta(self) -> Optional[str]:
-        """Detecta si alguien ganó el JUEGO (3 campos en línea en meta-tablero)."""
+        """Detecta si alguien ganó el juego (3 campos en línea en meta-tablero)."""
         for linea in LINEAS_META_TABLERO:
             (f1, c1), (f2, c2), (f3, c3) = linea
             v1 = self.meta_tablero[f1][c1]
@@ -318,15 +302,15 @@ class Tablero:
         Verifica si se puede jugar en un mini-tablero.
 
         Returns:
-            False si ya fue ganado, está lleno, o es un empate.
-            True si todavía tiene casillas vacías.
+            False si ya fue ganado por X o O, está lleno, o es un empate.
+            True si todavía tiene casillas vacías para jugar.
         """
         return self.meta_tablero[fila_meta][col_meta] is None
 
     # ----- Representación y debug -----
 
     def __str__(self) -> str:
-        """Retorna representación en string del tablero para mostrar en terminal."""
+        """Regresa la representación en string del tablero para mostrar en la terminal"""
         def simbolo_celda(valor: Optional[str]) -> str:
             return valor if valor else '.'
 
@@ -358,10 +342,10 @@ class Tablero:
 
     def copiar(self) -> "Tablero":
         """
-        Crea una copia independiente del tablero actual.
+        Crea una copia del tablero actual
 
-        Usado por minimax para explorar variaciones. No copia el
-        historial (se descarta para ahorrar memoria).
+        Usado por minimax para ver variaciones. No copia el
+        historial.
         """
         nuevo = Tablero()
         nuevo.mini_tableros = [
@@ -372,12 +356,10 @@ class Tablero:
 
     def get_estado_hash(self) -> int:
         """
-        Retorna un identificador hash del estado actual.
+        Regresa un identificador hash del estado actual.
 
-        Convierte mini_tableros y meta_tablero a tuplas inmutables y aplica
-        hash() de Python. La probabilidad de colisión es extremadamente baja
-        y el cálculo es O(81), suficientemente rápido para llamarse miles de
-        veces durante minimax.
+        Convierte mini_tableros y meta_tablero a tuplas  y aplica
+        hash() de Python.
         """
         mini_tuple = tuple(
             tuple(tuple(fila) for fila in mini) for mini in self.mini_tableros
@@ -392,7 +374,7 @@ class Tablero:
 
 def movimientos_validos_mini(tablero_3x3: List[List[Optional[str]]]) -> List[Tuple[int, int]]:
     """
-    Retorna casillas vacías en un mini-tablero específico.
+    Regresa casillas vacías en un mini-tablero específico.
 
     Returns:
         Lista de tuplas (fila, col) de casillas vacías
@@ -407,7 +389,7 @@ def movimientos_validos_mini(tablero_3x3: List[List[Optional[str]]]) -> List[Tup
 
 def mini_tableros_disponibles(tablero: Tablero) -> List[Tuple[int, int]]:
     """
-    Retorna lista de mini-tableros donde aún se puede jugar.
+    Regresa lista de mini-tableros donde aún se puede jugar.
 
     Returns:
         Lista de tuplas (fila_meta, col_meta) de mini-tableros disponibles
@@ -422,7 +404,7 @@ def mini_tableros_disponibles(tablero: Tablero) -> List[Tuple[int, int]]:
 
 def movimientos_validos(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]]) -> List[Tuple[int, int, int, int]]:
     """
-    Retorna lista de movimientos válidos desde la posición actual.
+    Regresa lista de movimientos válidos desde la posición actual.
 
     Args:
         tablero: Estado actual del juego
@@ -459,8 +441,7 @@ def movimientos_validos(tablero: Tablero, tablero_destino: Optional[Tuple[int, i
 # =============================================================================
 #
 # evaluar_posicion() combina 7 componentes ponderados (pesos en la sección
-# de CONFIGURACIÓN). Explicación detallada de cada uno, con ejemplos
-# numéricos, en documentacion/heuristica.md.
+# de CONFIGURACIÓN).
 
 def contar_lineas_abiertas(tablero_3x3: List[List[Optional[str]]],
                            jugador: str, cantidad_marcas: int) -> int:
@@ -617,7 +598,7 @@ def evaluar_amenaza_destino(tablero: Tablero, tablero_destino: Optional[Tuple[in
     Evalúa el mini-tablero al que `jugador_actual` está obligado a jugar.
 
     Si ese mini-tablero ya tiene una amenaza (2-en-línea) de jugador_actual,
-    es un regalo (puede ganarlo de inmediato). Si la amenaza es del rival,
+    puede ganarlo de inmediato. Si la amenaza es del rival,
     es una trampa. Si no hay restricción real (tablero_destino es None, o
     apunta a un mini-tablero ya decidido), se da un pequeño bono por la
     libertad de elegir.
@@ -736,7 +717,7 @@ def evaluar_posicion(tablero: Tablero, es_maximizando: bool,
     """
     Evalúa la posición actual del tablero usando heurística multi-componente.
 
-    Args:
+    Argumentos:
         tablero: Estado actual del juego
         es_maximizando: True si estamos evaluando para X (maximizador),
                        False si estamos evaluando para O (minimizador).
@@ -874,8 +855,7 @@ _tiempo_limite_absoluto: Optional[float] = None
 _contador_nodos: int = 0
 
 # Estadísticas de la última llamada a mejor_movimiento(): profundidad
-# alcanzada, nodos visitados, valor encontrado, segundos usados y
-# presupuesto de tiempo asignado.
+# alcanzada, nodos visitados, valor encontrado, segundos usados y presupuesto de tiempo asignado.
 ultimas_estadisticas: Dict[str, object] = {}
 
 
@@ -1246,7 +1226,7 @@ def mejor_movimiento(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]
 # =============================================================================
 
 def _simbolo_campo(tablero: Tablero, fila_meta: int, col_meta: int) -> str:
-    """Retorna el símbolo a mostrar para un campo del meta-tablero: su letra (A-I) si sigue en juego, o 'X'/'O'/'=' si ya se decidió."""
+    """Regresa el símbolo a mostrar para un campo del meta-tablero: su letra (A-I) si sigue en juego, o 'X'/'O'/'=' si ya se decidió."""
     valor = tablero.meta_tablero[fila_meta][col_meta]
     if valor == 'EMPATE':
         return '='
@@ -1265,7 +1245,7 @@ def _simbolo_celda(tablero: Tablero, fila_meta: int, col_meta: int, fila_mini: i
 
 def mostrar_tablero(tablero: Tablero) -> None:
     """
-    Imprime el tablero en terminal de forma legible.
+    Imprime el tablero en terminal d
 
     Cada casilla vacía muestra su letra de posición (a-i) y cada campo
     del meta-tablero muestra su letra (A-I) mientras sigue disponible,
@@ -1408,19 +1388,6 @@ def solicitar_primer_jugador() -> str:
     return "SISTEMA" if respuesta == "S" else "EXTERNO"
 
 
-def solicitar_modo_juego() -> str:
-    """Solicita uno de los tres modos disponibles y valida la respuesta."""
-    opcion = ""
-    while opcion not in ("1", "2", "3"):
-        print("1. Humano vs Humano")
-        print("2. IA vs IA")
-        print("3. Humano vs IA")
-        opcion = input("Elige una opción (1/2/3): ").strip()
-        if opcion not in ("1", "2", "3"):
-            mostrar_mensaje("Opción inválida. Escribe 1, 2 o 3.")
-    return opcion
-
-
 def mostrar_estado_juego(tablero: Tablero, turno: str) -> None:
     """Muestra información de estado del juego: turno actual, ganador o empate."""
     ganador = tablero.detectar_ganador_meta()
@@ -1507,16 +1474,6 @@ def _ejecutar_partida(tablero: Tablero, obtener_movimiento_x: ObtenerMovimiento,
             tablero_destino = (movimiento[2], movimiento[3])
 
 
-def jugar() -> None:
-    """Ejecuta un juego completo de Ultimate Tic-Tac-Toe humano vs humano."""
-    _ejecutar_partida(Tablero(), obtener_movimiento_valido, obtener_movimiento_valido)
-
-
-def jugar_ia_vs_ia() -> None:
-    """Ejecuta un juego completo IA vs IA (minimax contra sí mismo), para observar cómo juega."""
-    _ejecutar_partida(Tablero(), _movimiento_ia, _movimiento_ia)
-
-
 def jugar_humano_vs_ia() -> None:
     """
     Ejecuta la partida de torneo entre el sistema y el jugador externo.
@@ -1530,18 +1487,6 @@ def jugar_humano_vs_ia() -> None:
         _ejecutar_partida(tablero, obtener_movimiento_valido, _movimiento_ia)
     else:
         _ejecutar_partida(tablero, _movimiento_ia, obtener_movimiento_valido)
-
-
-def jugar_con_menu() -> None:
-    """Ofrece los tres modos de demostración; no es la entrada del torneo."""
-    opcion = solicitar_modo_juego()
-
-    if opcion == "1":
-        jugar()
-    elif opcion == "2":
-        jugar_ia_vs_ia()
-    elif opcion == "3":
-        jugar_humano_vs_ia()
 
 
 if __name__ == "__main__":

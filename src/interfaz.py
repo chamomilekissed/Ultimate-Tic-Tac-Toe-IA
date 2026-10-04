@@ -206,19 +206,6 @@ def solicitar_primer_jugador() -> str:
     return "SISTEMA" if respuesta == "S" else "EXTERNO"
 
 
-def solicitar_modo_juego() -> str:
-    """Solicita uno de los tres modos disponibles y valida la respuesta."""
-    opcion = ""
-    while opcion not in ("1", "2", "3"):
-        print("1. Humano vs Humano")
-        print("2. IA vs IA")
-        print("3. Humano vs IA")
-        opcion = input("Elige una opción (1/2/3): ").strip()
-        if opcion not in ("1", "2", "3"):
-            mostrar_mensaje("Opción inválida. Escribe 1, 2 o 3.")
-    return opcion
-
-
 def mostrar_estado_juego(tablero: "tb.Tablero", turno: str) -> None:
     """
     Muestra información de estado del juego: turno actual, ganador o empate.

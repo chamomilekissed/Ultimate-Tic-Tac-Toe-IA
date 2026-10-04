@@ -20,7 +20,7 @@ python -m src.main
 | `evaluador.py` | Calcula la puntuación heurística de una posición. |
 | `minimax.py` | Elige movimientos con Minimax, alfa-beta y optimizaciones. |
 | `interfaz.py` | Lee coordenadas, valida texto y muestra el tablero. |
-| `main.py` | Inicia el modo de torneo y conserva modos opcionales de demostración. |
+| `main.py` | Inicia la partida requerida entre el sistema y el jugador externo. |
 | `transcripciones.py` | Guarda partidas en Markdown dentro de `casos_de_estudio/`. |
 | `torneo.py` | Ejecuta varias partidas IA vs IA y guarda sus resultados. |
 
