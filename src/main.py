@@ -1,22 +1,25 @@
 """
 MÓDULO: main.py
 RESPONSABLE: Persona C
-DESCRIPCIÓN: Loop principal del juego
+DESCRIPCIÓN: Ciclo principal del juego
 
 Coordina la lógica del juego: inicialización, turnos, detección de fin
 de juego y entrada/salida a través de interfaz.py.
 """
 
-from .config import *
+from typing import Callable, Optional, Tuple
+
 from . import tablero as tb
 from . import movimientos as mov
 from . import minimax as mm
 from . import interfaz as ui
+from .config import JUGADOR_O, JUGADOR_X
 from .transcripciones import RegistradorPartida
-from typing import Callable, Optional, Tuple
 
 
-def obtener_movimiento_valido(tablero: "tb.Tablero", tablero_destino: Optional[Tuple[int, int]]) -> Tuple[Tuple[int, int, int, int], None]:
+def obtener_movimiento_valido(
+    tablero: "tb.Tablero", tablero_destino: Optional[Tuple[int, int]]
+) -> Tuple[Tuple[int, int, int, int], None]:
     """
     Pide movimientos al usuario hasta obtener uno legal.
 
@@ -24,17 +27,20 @@ def obtener_movimiento_valido(tablero: "tb.Tablero", tablero_destino: Optional[T
     para el tablero_destino vigente (respeta la casilla obligatoria y que
     esté vacía).
 
-    Returns:
+    Retorna:
         (movimiento, None) — el segundo elemento va en None porque no hay
         estadísticas de búsqueda que registrar para una jugada humana (ver
-        ObtenerMovimiento / RegistradorPartida).
+        TipoObtenerMovimiento / RegistradorPartida).
     """
     movimientos_legales = mov.movimientos_validos(tablero, tablero_destino)
+    ui.mostrar_opciones_movimiento(movimientos_legales)
     while True:
         movimiento = ui.obtener_movimiento_usuario()
         if movimiento in movimientos_legales:
             return movimiento, None
-        ui.mostrar_mensaje("Movimiento no permitido: la casilla está ocupada o no corresponde al campo obligatorio.")
+        ui.mostrar_mensaje(
+            "Movimiento no permitido: la casilla está ocupada o no corresponde al campo obligatorio."
+        )
 
 
 def imprimir_resultado(tablero: "tb.Tablero") -> None:
@@ -49,28 +55,38 @@ def imprimir_resultado(tablero: "tb.Tablero") -> None:
         ui.mostrar_mensaje("EMPATE")
 
 
-def _movimiento_ia(tablero: "tb.Tablero", tablero_destino: Optional[Tuple[int, int]]) -> Tuple[Tuple[int, int, int, int], dict]:
+def _movimiento_ia(
+    tablero: "tb.Tablero", tablero_destino: Optional[Tuple[int, int]]
+) -> Tuple[Tuple[int, int, int, int], dict]:
     """Obtiene el movimiento de la IA (minimax), lo anuncia y muestra estadísticas de la búsqueda.
 
-    Returns:
+    Retorna:
         (movimiento, estadisticas) — estadisticas es una copia de
         minimax.ultimas_estadisticas en el momento de esta jugada, para que
         RegistradorPartida pueda incluirla en la transcripción.
     """
     movimiento = mm.mejor_movimiento(tablero, tablero_destino)
+    if movimiento is None:
+        raise RuntimeError("La IA no encontró movimientos en una posición activa.")
     ui.mostrar_movimiento_ia(*movimiento)
     ui.mostrar_estadisticas_ia(mm.ultimas_estadisticas)
     return movimiento, dict(mm.ultimas_estadisticas)
 
 
-ObtenerMovimiento = Callable[["tb.Tablero", Optional[Tuple[int, int]]], Tuple[Tuple[int, int, int, int], Optional[dict]]]
+TipoObtenerMovimiento = Callable[
+    ["tb.Tablero", Optional[Tuple[int, int]]],
+    Tuple[Tuple[int, int, int, int], Optional[dict]],
+]
 
 
-def _ejecutar_partida(tablero: "tb.Tablero", obtener_movimiento_x: ObtenerMovimiento,
-                     obtener_movimiento_o: ObtenerMovimiento,
-                     registrador: Optional[RegistradorPartida] = None) -> None:
+def _ejecutar_partida(
+    tablero: "tb.Tablero",
+    obtener_movimiento_x: TipoObtenerMovimiento,
+    obtener_movimiento_o: TipoObtenerMovimiento,
+    registrador: Optional[RegistradorPartida] = None,
+) -> None:
     """
-    Corre el loop principal de una partida, delegando en las funciones dadas
+    Ejecuta el ciclo principal de una partida y delega en las funciones dadas
     cómo obtener el movimiento de X y de O (humano o IA) en cada turno.
 
     Si se da un `registrador`, cada jugada se le registra y, al terminar la
@@ -98,8 +114,7 @@ def _ejecutar_partida(tablero: "tb.Tablero", obtener_movimiento_x: ObtenerMovimi
             registrador.registrar(jugador, movimiento, estadisticas)
 
         partida_terminada = (
-            tablero.detectar_ganador_meta() is not None
-            or tablero.verificar_empate()
+            tablero.detectar_ganador_meta() is not None or tablero.verificar_empate()
         )
         if partida_terminada:
             imprimir_resultado(tablero)
@@ -124,16 +139,18 @@ def jugar_humano_vs_ia() -> None:
 
     if primer_jugador == "EXTERNO":
         registrador = RegistradorPartida(
-            "Jugador externo vs sistema", origen_x="Jugador externo",
-            origen_o="Sistema"
+            "Jugador externo vs sistema", origen_x="Jugador externo", origen_o="Sistema"
         )
-        _ejecutar_partida(tablero, obtener_movimiento_valido, _movimiento_ia, registrador)
+        _ejecutar_partida(
+            tablero, obtener_movimiento_valido, _movimiento_ia, registrador
+        )
     else:
         registrador = RegistradorPartida(
-            "Sistema vs jugador externo", origen_x="Sistema",
-            origen_o="Jugador externo"
+            "Sistema vs jugador externo", origen_x="Sistema", origen_o="Jugador externo"
         )
-        _ejecutar_partida(tablero, _movimiento_ia, obtener_movimiento_valido, registrador)
+        _ejecutar_partida(
+            tablero, _movimiento_ia, obtener_movimiento_valido, registrador
+        )
 
 
 if __name__ == "__main__":

@@ -7,66 +7,73 @@ Uso: ``python -m pytest tests/test_regresion_historica.py -v``.
 """
 
 import pytest
-from src.config import *
+
 from src import tablero as tb
 from src import movimientos as mov
 from src import minimax as mm
 from src import evaluador as ev
+from src.config import DIMENSION_META, DIMENSION_MINI, JUGADOR_O, JUGADOR_X
 
 
-# ===== TESTS DEL MÓDULO TABLERO =====
+# ===== PRUEBAS DEL MÓDULO TABLERO =====
+
 
 class TestTablero:
-    """Tests para tablero.py"""
-    
+    """Pruebas históricas para ``tablero.py``."""
+
     def test_crear_tablero_vacio(self):
         """Verifica que un tablero nuevo esté vacío."""
         tablero = tb.Tablero()
-        for fila_meta in range(TAMAÑO_META):
-            for col_meta in range(TAMAÑO_META):
+        for fila_meta in range(DIMENSION_META):
+            for col_meta in range(DIMENSION_META):
                 assert tablero.meta_tablero[fila_meta][col_meta] is None
-                for fila_mini in range(TAMAÑO_MINI):
-                    for col_mini in range(TAMAÑO_MINI):
-                        assert tablero.obtener_casilla(fila_meta, col_meta, fila_mini, col_mini) is None
+                for fila_mini in range(DIMENSION_MINI):
+                    for col_mini in range(DIMENSION_MINI):
+                        assert (
+                            tablero.obtener_casilla(
+                                fila_meta, col_meta, fila_mini, col_mini
+                            )
+                            is None
+                        )
 
     def test_aplicar_movimiento_valido(self):
         """Verifica que se puede aplicar un movimiento válido."""
         tablero = tb.Tablero()
-        resultado = tablero.aplicar_movimiento(0, 0, 0, 0, 'X')
+        resultado = tablero.aplicar_movimiento(0, 0, 0, 0, "X")
         assert resultado is True
-        assert tablero.obtener_casilla(0, 0, 0, 0) == 'X'
+        assert tablero.obtener_casilla(0, 0, 0, 0) == "X"
 
     def test_aplicar_movimiento_casilla_ocupada(self):
         """Verifica que no se puede jugar en casilla ocupada."""
         tablero = tb.Tablero()
-        tablero.aplicar_movimiento(0, 0, 0, 0, 'X')
-        resultado = tablero.aplicar_movimiento(0, 0, 0, 0, 'O')
+        tablero.aplicar_movimiento(0, 0, 0, 0, "X")
+        resultado = tablero.aplicar_movimiento(0, 0, 0, 0, "O")
         assert resultado is False
-        assert tablero.obtener_casilla(0, 0, 0, 0) == 'X'
+        assert tablero.obtener_casilla(0, 0, 0, 0) == "X"
 
     def test_detectar_ganador_horizontal(self):
         """Verifica detección de 3-en-línea horizontal."""
         tablero = tb.Tablero()
-        tablero.aplicar_movimiento(0, 0, 0, 0, 'X')
-        tablero.aplicar_movimiento(0, 0, 0, 1, 'X')
-        tablero.aplicar_movimiento(0, 0, 0, 2, 'X')
-        assert tablero.obtener_ganador_mini(0, 0) == 'X'
+        tablero.aplicar_movimiento(0, 0, 0, 0, "X")
+        tablero.aplicar_movimiento(0, 0, 0, 1, "X")
+        tablero.aplicar_movimiento(0, 0, 0, 2, "X")
+        assert tablero.obtener_ganador_mini(0, 0) == "X"
 
     def test_detectar_ganador_vertical(self):
         """Verifica detección de 3-en-línea vertical."""
         tablero = tb.Tablero()
-        tablero.aplicar_movimiento(0, 0, 0, 0, 'O')
-        tablero.aplicar_movimiento(0, 0, 1, 0, 'O')
-        tablero.aplicar_movimiento(0, 0, 2, 0, 'O')
-        assert tablero.obtener_ganador_mini(0, 0) == 'O'
+        tablero.aplicar_movimiento(0, 0, 0, 0, "O")
+        tablero.aplicar_movimiento(0, 0, 1, 0, "O")
+        tablero.aplicar_movimiento(0, 0, 2, 0, "O")
+        assert tablero.obtener_ganador_mini(0, 0) == "O"
 
     def test_detectar_ganador_diagonal(self):
         """Verifica detección de 3-en-línea diagonal."""
         tablero = tb.Tablero()
-        tablero.aplicar_movimiento(0, 0, 0, 0, 'X')
-        tablero.aplicar_movimiento(0, 0, 1, 1, 'X')
-        tablero.aplicar_movimiento(0, 0, 2, 2, 'X')
-        assert tablero.obtener_ganador_mini(0, 0) == 'X'
+        tablero.aplicar_movimiento(0, 0, 0, 0, "X")
+        tablero.aplicar_movimiento(0, 0, 1, 1, "X")
+        tablero.aplicar_movimiento(0, 0, 2, 2, "X")
+        assert tablero.obtener_ganador_mini(0, 0) == "X"
 
     def test_detectar_ganador_meta_tablero(self):
         """Verifica detección de ganador en meta-tablero."""
@@ -74,16 +81,16 @@ class TestTablero:
         tablero = tb.Tablero()
         # Simular ganar campos A, B, C (primera fila del meta-tablero) para X
         for col_meta in range(3):
-            tablero.aplicar_movimiento(0, col_meta, 0, 0, 'X')
-            tablero.aplicar_movimiento(0, col_meta, 0, 1, 'X')
-            tablero.aplicar_movimiento(0, col_meta, 0, 2, 'X')
-        assert tablero.detectar_ganador_meta() == 'X'
+            tablero.aplicar_movimiento(0, col_meta, 0, 0, "X")
+            tablero.aplicar_movimiento(0, col_meta, 0, 1, "X")
+            tablero.aplicar_movimiento(0, col_meta, 0, 2, "X")
+        assert tablero.detectar_ganador_meta() == "X"
 
     def test_deshacer_movimiento(self):
         """Verifica que deshacer funciona."""
         tablero = tb.Tablero()
-        tablero.aplicar_movimiento(0, 0, 0, 0, 'X')
-        assert tablero.obtener_casilla(0, 0, 0, 0) == 'X'
+        tablero.aplicar_movimiento(0, 0, 0, 0, "X")
+        assert tablero.obtener_casilla(0, 0, 0, 0) == "X"
         resultado = tablero.deshacer_movimiento()
         assert resultado is True
         assert tablero.obtener_casilla(0, 0, 0, 0) is None
@@ -91,18 +98,19 @@ class TestTablero:
     def test_copiar_tablero(self):
         """Verifica que copiar crea una copia independiente."""
         tablero1 = tb.Tablero()
-        tablero1.aplicar_movimiento(0, 0, 0, 0, 'X')
+        tablero1.aplicar_movimiento(0, 0, 0, 0, "X")
         tablero2 = tablero1.copiar()
-        assert tablero2.obtener_casilla(0, 0, 0, 0) == 'X'
-        tablero2.aplicar_movimiento(0, 0, 0, 1, 'O')
+        assert tablero2.obtener_casilla(0, 0, 0, 0) == "X"
+        tablero2.aplicar_movimiento(0, 0, 0, 1, "O")
         assert tablero1.obtener_casilla(0, 0, 0, 1) is None
-        assert tablero2.obtener_casilla(0, 0, 0, 1) == 'O'
+        assert tablero2.obtener_casilla(0, 0, 0, 1) == "O"
 
 
-# ===== TESTS DEL MÓDULO MOVIMIENTOS =====
+# ===== PRUEBAS DEL MÓDULO MOVIMIENTOS =====
+
 
 class TestMovimientos:
-    """Tests para movimientos.py"""
+    """Pruebas históricas para ``movimientos.py``."""
 
     def test_movimientos_primer_turno(self):
         """En el primer turno, todos los 81 movimientos son válidos."""
@@ -115,7 +123,9 @@ class TestMovimientos:
         tablero = tb.Tablero()
         tablero_destino = (0, 0)  # Mini-tablero A
         movs = mov.movimientos_validos(tablero, tablero_destino)
-        assert all(fila_meta == 0 and col_meta == 0 for fila_meta, col_meta, _, _ in movs)
+        assert all(
+            fila_meta == 0 and col_meta == 0 for fila_meta, col_meta, _, _ in movs
+        )
         assert len(movs) <= 9
 
     def test_movimientos_tablero_lleno_permite_libre(self):
@@ -123,24 +133,33 @@ class TestMovimientos:
         tablero = tb.Tablero()
         # Llenar mini-tablero (0, 0) sin que nadie gane (empate local)
         grilla_empate = [
-            (0, 0, 'X'), (0, 1, 'O'), (0, 2, 'X'),
-            (1, 0, 'X'), (1, 1, 'O'), (1, 2, 'O'),
-            (2, 0, 'O'), (2, 1, 'X'), (2, 2, 'X'),
+            (0, 0, "X"),
+            (0, 1, "O"),
+            (0, 2, "X"),
+            (1, 0, "X"),
+            (1, 1, "O"),
+            (1, 2, "O"),
+            (2, 0, "O"),
+            (2, 1, "X"),
+            (2, 2, "X"),
         ]
         for fila_mini, col_mini, jugador in grilla_empate:
             tablero.aplicar_movimiento(0, 0, fila_mini, col_mini, jugador)
-        assert tablero.obtener_ganador_mini(0, 0) == 'EMPATE'
+        assert tablero.obtener_ganador_mini(0, 0) == "EMPATE"
 
         tablero_destino = (0, 0)
         movs = mov.movimientos_validos(tablero, tablero_destino)
         assert len(movs) > 9
-        assert all(not (fila_meta == 0 and col_meta == 0) for fila_meta, col_meta, _, _ in movs)
+        assert all(
+            not (fila_meta == 0 and col_meta == 0) for fila_meta, col_meta, _, _ in movs
+        )
 
 
-# ===== TESTS DEL MÓDULO EVALUADOR =====
+# ===== PRUEBAS DEL MÓDULO EVALUADOR =====
+
 
 class TestEvaluador:
-    """Tests para evaluador.py"""
+    """Pruebas históricas para ``evaluador.py``."""
 
     def test_evaluar_tablero_vacio(self):
         """Tablero vacío debería tener puntuación cercana a 0."""
@@ -153,9 +172,9 @@ class TestEvaluador:
         tablero = tb.Tablero()
         # Crear posición donde X ganó: gana los campos A, B, C (primera fila)
         for col_meta in range(3):
-            tablero.aplicar_movimiento(0, col_meta, 0, 0, 'X')
-            tablero.aplicar_movimiento(0, col_meta, 0, 1, 'X')
-            tablero.aplicar_movimiento(0, col_meta, 0, 2, 'X')
+            tablero.aplicar_movimiento(0, col_meta, 0, 0, "X")
+            tablero.aplicar_movimiento(0, col_meta, 0, 1, "X")
+            tablero.aplicar_movimiento(0, col_meta, 0, 2, "X")
         puntuacion = ev.evaluar_posicion(tablero, True)
         assert puntuacion > 5000
 
@@ -164,30 +183,37 @@ class TestEvaluador:
         tablero = tb.Tablero()
         # Crear posición donde O ganó: gana los campos A, B, C (primera fila)
         for col_meta in range(3):
-            tablero.aplicar_movimiento(0, col_meta, 0, 0, 'O')
-            tablero.aplicar_movimiento(0, col_meta, 0, 1, 'O')
-            tablero.aplicar_movimiento(0, col_meta, 0, 2, 'O')
+            tablero.aplicar_movimiento(0, col_meta, 0, 0, "O")
+            tablero.aplicar_movimiento(0, col_meta, 0, 1, "O")
+            tablero.aplicar_movimiento(0, col_meta, 0, 2, "O")
         puntuacion = ev.evaluar_posicion(tablero, True)
         assert puntuacion < -5000
 
 
-# ===== TESTS DEL MÓDULO MINIMAX =====
+# ===== PRUEBAS DEL MÓDULO MINIMAX =====
+
 
 def _llenar_mini_empate(tablero, fila_meta, col_meta, invertir=False):
     """Llena un mini-tablero con un patrón sin ganador (empate 5-4 o 4-5)."""
     patron = [
-        (0, 0, 'X'), (0, 1, 'O'), (0, 2, 'X'),
-        (1, 0, 'X'), (1, 1, 'O'), (1, 2, 'O'),
-        (2, 0, 'O'), (2, 1, 'X'), (2, 2, 'X'),
+        (0, 0, "X"),
+        (0, 1, "O"),
+        (0, 2, "X"),
+        (1, 0, "X"),
+        (1, 1, "O"),
+        (1, 2, "O"),
+        (2, 0, "O"),
+        (2, 1, "X"),
+        (2, 2, "X"),
     ]
     for fila_mini, col_mini, jugador in patron:
         if invertir:
-            jugador = 'O' if jugador == 'X' else 'X'
+            jugador = "O" if jugador == "X" else "X"
         tablero.aplicar_movimiento(fila_meta, col_meta, fila_mini, col_mini, jugador)
 
 
 class TestMinimax:
-    """Tests para minimax.py"""
+    """Pruebas históricas para ``minimax.py``."""
 
     def test_minimax_encuentra_ganadora(self):
         """Minimax debería encontrar y ejecutar ganadora inmediata."""
@@ -197,20 +223,20 @@ class TestMinimax:
         # campos quedan empatados (decididos) para acotar la búsqueda a
         # las únicas casillas relevantes: las vacías de C.
         for col_mini in range(3):
-            tablero.aplicar_movimiento(0, 0, 0, col_mini, 'X')
-            tablero.aplicar_movimiento(0, 1, 0, col_mini, 'X')
-        tablero.aplicar_movimiento(0, 2, 0, 0, 'X')
-        tablero.aplicar_movimiento(0, 2, 0, 1, 'X')
-        tablero.aplicar_movimiento(0, 2, 1, 0, 'O')
-        tablero.aplicar_movimiento(0, 2, 2, 1, 'O')
+            tablero.aplicar_movimiento(0, 0, 0, col_mini, "X")
+            tablero.aplicar_movimiento(0, 1, 0, col_mini, "X")
+        tablero.aplicar_movimiento(0, 2, 0, 0, "X")
+        tablero.aplicar_movimiento(0, 2, 0, 1, "X")
+        tablero.aplicar_movimiento(0, 2, 1, 0, "O")
+        tablero.aplicar_movimiento(0, 2, 2, 1, "O")
         for fila_meta, col_meta in [(1, 0), (1, 1), (1, 2), (2, 0), (2, 1), (2, 2)]:
             _llenar_mini_empate(tablero, fila_meta, col_meta, invertir=True)
 
         movimiento = mm.mejor_movimiento(tablero, None, tiempo_limite=5)
         assert movimiento == (0, 2, 0, 2)
 
-        tablero.aplicar_movimiento(*movimiento, 'X')
-        assert tablero.detectar_ganador_meta() == 'X'
+        tablero.aplicar_movimiento(*movimiento, "X")
+        assert tablero.detectar_ganador_meta() == "X"
 
     def test_minimax_bloquea_amenaza(self):
         """Minimax debería bloquear amenaza de oponente."""
@@ -219,16 +245,16 @@ class TestMinimax:
         # completar la fila D-E-F y ganar TODO el juego. X debe bloquear
         # la única casilla que evita esa victoria. El resto de campos
         # quedan empatados (decididos) para acotar la búsqueda.
-        tablero.aplicar_movimiento(1, 0, 0, 0, 'O')
-        tablero.aplicar_movimiento(1, 0, 0, 1, 'O')
-        tablero.aplicar_movimiento(1, 0, 0, 2, 'O')
-        tablero.aplicar_movimiento(1, 1, 0, 0, 'O')
-        tablero.aplicar_movimiento(1, 1, 0, 1, 'O')
-        tablero.aplicar_movimiento(1, 1, 0, 2, 'O')
-        tablero.aplicar_movimiento(1, 2, 0, 0, 'O')
-        tablero.aplicar_movimiento(1, 2, 0, 1, 'O')
-        tablero.aplicar_movimiento(1, 2, 1, 0, 'X')
-        tablero.aplicar_movimiento(1, 2, 2, 1, 'X')
+        tablero.aplicar_movimiento(1, 0, 0, 0, "O")
+        tablero.aplicar_movimiento(1, 0, 0, 1, "O")
+        tablero.aplicar_movimiento(1, 0, 0, 2, "O")
+        tablero.aplicar_movimiento(1, 1, 0, 0, "O")
+        tablero.aplicar_movimiento(1, 1, 0, 1, "O")
+        tablero.aplicar_movimiento(1, 1, 0, 2, "O")
+        tablero.aplicar_movimiento(1, 2, 0, 0, "O")
+        tablero.aplicar_movimiento(1, 2, 0, 1, "O")
+        tablero.aplicar_movimiento(1, 2, 1, 0, "X")
+        tablero.aplicar_movimiento(1, 2, 2, 1, "X")
         for fila_meta, col_meta in [(0, 0), (0, 1), (0, 2), (2, 0), (2, 1), (2, 2)]:
             _llenar_mini_empate(tablero, fila_meta, col_meta, invertir=False)
 
@@ -238,44 +264,49 @@ class TestMinimax:
     def test_minimax_respeta_tiempo_limite(self):
         """Minimax no debe exceder tiempo límite."""
         import time
+
         tablero = tb.Tablero()
         tiempo_inicio = time.time()
         movimiento = mm.mejor_movimiento(tablero, None, tiempo_limite=1)
         tiempo_transcurrido = time.time() - tiempo_inicio
+        assert movimiento is not None
         assert tiempo_transcurrido <= 1.5
 
 
-# ===== TESTS DE INTEGRACIÓN =====
+# ===== PRUEBAS DE INTEGRACIÓN =====
+
 
 class TestIntegracion:
-    """Tests que verifican que todo funciona junto."""
+    """Pruebas que verifican que todos los módulos funcionan juntos."""
 
     def test_juego_ai_vs_ai(self):
-        """Simula un juego IA vs IA sin crashes."""
+        """Simula una partida de la IA contra sí misma sin fallos."""
         tablero = tb.Tablero()
         es_turno_x = True
         tablero_destino = None
         pasos = 0
         max_pasos = 81  # Una partida no puede colocar más de 81 marcas
         partida_terminada = False
-        
+
         while pasos < max_pasos and not partida_terminada:
             # Obtener movimiento
             movimiento = mm.mejor_movimiento(
-                tablero, 
-                tablero_destino, 
+                tablero,
+                tablero_destino,
                 # Esta prueba verifica integración, no fuerza de juego. Un
                 # presupuesto pequeño mantiene la suite rápida mientras sigue
                 # recorriendo Minimax, la heurística y el control del tiempo.
-                tiempo_limite=0.01
+                tiempo_limite=0.01,
             )
-            
+
             if movimiento is None:
                 partida_terminada = True
             else:
                 fila_meta, col_meta, fila_mini, col_mini = movimiento
-                jugador = 'X' if es_turno_x else 'O'
-                tablero.aplicar_movimiento(fila_meta, col_meta, fila_mini, col_mini, jugador)
+                jugador = "X" if es_turno_x else "O"
+                tablero.aplicar_movimiento(
+                    fila_meta, col_meta, fila_mini, col_mini, jugador
+                )
 
                 ganador = tablero.detectar_ganador_meta()
                 if ganador is not None:
@@ -286,27 +317,30 @@ class TestIntegracion:
                     es_turno_x = not es_turno_x
                     tablero_destino = (fila_mini, col_mini)
                 pasos += 1
-        
+
         assert pasos > 0  # Se jugó al menos 1 movimiento
-    
+
     def test_movimientos_siempre_validos(self):
         """En cualquier momento, hay al menos un movimiento válido."""
         tablero = tb.Tablero()
         tablero_destino = None
         pasos = 0
         partida_terminada = False
-        
+
         while pasos < 100 and not partida_terminada:
             movimientos = mov.movimientos_validos(tablero, tablero_destino)
             assert len(movimientos) > 0, "No hay movimientos disponibles"
 
             # Jugar movimiento aleatorio
             import random
+
             movimiento = random.choice(movimientos)
             fila_meta, col_meta, fila_mini, col_mini = movimiento
-            jugador = 'X' if pasos % 2 == 0 else 'O'
-            
-            tablero.aplicar_movimiento(fila_meta, col_meta, fila_mini, col_mini, jugador)
+            jugador = "X" if pasos % 2 == 0 else "O"
+
+            tablero.aplicar_movimiento(
+                fila_meta, col_meta, fila_mini, col_mini, jugador
+            )
 
             # El invariante ("siempre hay movimiento válido") solo aplica
             # mientras el juego sigue: una vez que gana alguien o empata,

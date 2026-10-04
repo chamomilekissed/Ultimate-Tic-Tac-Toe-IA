@@ -7,8 +7,16 @@ Este archivo define cómo se representa el estado del juego internamente.
 CRÍTICO: Debe ser RÁPIDO - minimax lo llama miles de veces.
 """
 
-from .config import *
 from typing import Optional, List, Tuple
+
+from .config import (
+    DIMENSION_META,
+    DIMENSION_MINI,
+    JUGADOR_O,
+    JUGADOR_X,
+    LINEAS_META_TABLERO,
+    LINEAS_MINI_TABLERO,
+)
 
 
 class Tablero:
@@ -16,9 +24,9 @@ class Tablero:
     Representa el estado del juego completo.
 
     Estructura interna:
-    - meta_tablero: Array 3x3 con ganadores de mini-tableros ('X', 'O', None, 'EMPATE')
-    - mini_tableros: Array de 9 tableros 3x3 internos (índice = fila_meta * 3 + col_meta)
-    - historial: Stack de movimientos previos para deshacer
+    - meta_tablero: arreglo 3x3 con el resultado de cada mini-tablero;
+    - mini_tableros: arreglo con los nueve tableros internos de 3 por 3;
+    - historial: pila de movimientos previos que permite deshacer jugadas.
     """
 
     def __init__(self):
@@ -30,39 +38,39 @@ class Tablero:
         - historial: pila vacía
         """
         self.meta_tablero: List[List[Optional[str]]] = [
-            [None for _ in range(TAMAÑO_META)] for _ in range(TAMAÑO_META)
+            [None for _ in range(DIMENSION_META)] for _ in range(DIMENSION_META)
         ]
         self.mini_tableros: List[List[List[Optional[str]]]] = [
-            [[None for _ in range(TAMAÑO_MINI)] for _ in range(TAMAÑO_MINI)]
-            for _ in range(TAMAÑO_META * TAMAÑO_META)
+            [[None for _ in range(DIMENSION_MINI)] for _ in range(DIMENSION_MINI)]
+            for _ in range(DIMENSION_META * DIMENSION_META)
         ]
         self.historial: List[Tuple[int, int, int, int, Optional[str]]] = []
 
     # ===== MÉTODOS AUXILIARES INTERNOS =====
 
     def _indice_mini(self, fila_meta: int, col_meta: int) -> int:
-        """Convierte coordenadas (fila_meta, col_meta) al índice del array mini_tableros."""
-        return fila_meta * TAMAÑO_META + col_meta
+        """Convierte coordenadas del meta-tablero al índice de ``mini_tableros``."""
+        return fila_meta * DIMENSION_META + col_meta
 
     # ===== MÉTODOS DE MODIFICACIÓN =====
 
-    def aplicar_movimiento(self, fila_meta: int, col_meta: int,
-                          fila_mini: int, col_mini: int, jugador: str) -> bool:
+    def aplicar_movimiento(
+        self, fila_meta: int, col_meta: int, fila_mini: int, col_mini: int, jugador: str
+    ) -> bool:
         """
         Aplica un movimiento al tablero.
 
-        Args:
-            fila_meta, col_meta: Posición del mini-tablero (0-2)
-            fila_mini, col_mini: Posición dentro del mini-tablero (0-2)
-            jugador: 'X' o 'O'
+        Parámetros:
+            fila_meta, col_meta: Posición del mini-tablero; enteros de 0 a 2.
+            fila_mini, col_mini: Posición interna; enteros de 0 a 2.
+            jugador: Símbolo ``'X'`` o ``'O'``.
 
-        Returns:
-            True si el movimiento se aplicó exitosamente
-            False si las coordenadas o el jugador son inválidos, si el
-            mini-tablero ya terminó o si la casilla está ocupada.
+        Retorna:
+            ``True`` si se aplicó el movimiento; ``False`` si algún dato es
+            inválido, el mini-tablero terminó o la casilla está ocupada.
         """
         coordenadas = (fila_meta, col_meta, fila_mini, col_mini)
-        coordenadas_validas = all(0 <= valor < TAMAÑO_MINI for valor in coordenadas)
+        coordenadas_validas = all(0 <= valor < DIMENSION_MINI for valor in coordenadas)
         jugador_valido = jugador in (JUGADOR_X, JUGADOR_O)
 
         if not coordenadas_validas or not jugador_valido:
@@ -70,14 +78,16 @@ class Tablero:
         if not self.es_mini_tablero_disponible(fila_meta, col_meta):
             return False
 
-        idx = self._indice_mini(fila_meta, col_meta)
-        if self.mini_tableros[idx][fila_mini][col_mini] is not None:
+        indice_mini = self._indice_mini(fila_meta, col_meta)
+        if self.mini_tableros[indice_mini][fila_mini][col_mini] is not None:
             return False
 
         valor_meta_previo = self.meta_tablero[fila_meta][col_meta]
-        self.historial.append((fila_meta, col_meta, fila_mini, col_mini, valor_meta_previo))
+        self.historial.append(
+            (fila_meta, col_meta, fila_mini, col_mini, valor_meta_previo)
+        )
 
-        self.mini_tableros[idx][fila_mini][col_mini] = jugador
+        self.mini_tableros[indice_mini][fila_mini][col_mini] = jugador
 
         if valor_meta_previo is None:
             resultado_mini = self.obtener_ganador_mini(fila_meta, col_meta)
@@ -90,38 +100,45 @@ class Tablero:
         """
         Deshace el último movimiento (restaura del historial).
 
-        Returns:
-            True si se deshizo algo, False si historial está vacío
+        Retorna:
+            ``True`` si se deshizo una jugada; ``False`` si no había ninguna.
         """
         if not self.historial:
             return False
 
-        fila_meta, col_meta, fila_mini, col_mini, valor_meta_previo = self.historial.pop()
-        idx = self._indice_mini(fila_meta, col_meta)
-        self.mini_tableros[idx][fila_mini][col_mini] = None
+        fila_meta, col_meta, fila_mini, col_mini, valor_meta_previo = (
+            self.historial.pop()
+        )
+        indice_mini = self._indice_mini(fila_meta, col_meta)
+        self.mini_tableros[indice_mini][fila_mini][col_mini] = None
         self.meta_tablero[fila_meta][col_meta] = valor_meta_previo
         return True
 
     # ===== MÉTODOS DE LECTURA (CRÍTICOS PARA VELOCIDAD) =====
 
-    def obtener_mini_tablero(self, fila_meta: int, col_meta: int) -> List[List[Optional[str]]]:
+    def obtener_mini_tablero(
+        self, fila_meta: int, col_meta: int
+    ) -> List[List[Optional[str]]]:
         """
         Retorna el mini-tablero específico (sin copiar, para velocidad).
         """
         return self.mini_tableros[self._indice_mini(fila_meta, col_meta)]
 
-    def obtener_casilla(self, fila_meta: int, col_meta: int,
-                       fila_mini: int, col_mini: int) -> Optional[str]:
+    def obtener_casilla(
+        self, fila_meta: int, col_meta: int, fila_mini: int, col_mini: int
+    ) -> Optional[str]:
         """
         Retorna qué hay en una casilla específica ('X', 'O', o None).
         """
-        return self.mini_tableros[self._indice_mini(fila_meta, col_meta)][fila_mini][col_mini]
+        return self.mini_tableros[self._indice_mini(fila_meta, col_meta)][fila_mini][
+            col_mini
+        ]
 
     def obtener_ganador_mini(self, fila_meta: int, col_meta: int) -> Optional[str]:
         """
         Retorna quién ganó el mini-tablero especificado.
 
-        Returns:
+        Retorna:
             'X' si X ganó
             'O' si O ganó
             'EMPATE' si está lleno sin ganador
@@ -132,19 +149,21 @@ class Tablero:
         if ganador is not None:
             return ganador
         if self.es_mini_tablero_lleno(fila_meta, col_meta):
-            return 'EMPATE'
+            return "EMPATE"
         return None
 
     # ===== MÉTODOS DE DETECCIÓN (CRÍTICOS PARA MINIMAX) =====
 
-    def detectar_ganador_mini(self, tablero_3x3: List[List[Optional[str]]]) -> Optional[str]:
+    def detectar_ganador_mini(
+        self, tablero_3x3: List[List[Optional[str]]]
+    ) -> Optional[str]:
         """
         Detecta si alguien ganó en un mini-tablero (3-en-línea).
 
-        Args:
+        Parámetros:
             tablero_3x3: Mini-tablero a verificar
 
-        Returns:
+        Retorna:
             'X' si X ganó
             'O' si O ganó
             None si no hay ganador
@@ -160,7 +179,7 @@ class Tablero:
         """
         Detecta si alguien ganó el JUEGO (3 campos en línea en meta-tablero).
 
-        Returns:
+        Retorna:
             'X' si X ganó el juego
             'O' si O ganó el juego
             None si el juego sigue o está empatado
@@ -168,7 +187,10 @@ class Tablero:
         for linea in LINEAS_META_TABLERO:
             (f1, c1), (f2, c2), (f3, c3) = linea
             v1 = self.meta_tablero[f1][c1]
-            if v1 in (JUGADOR_X, JUGADOR_O) and v1 == self.meta_tablero[f2][c2] == self.meta_tablero[f3][c3]:
+            if (
+                v1 in (JUGADOR_X, JUGADOR_O)
+                and v1 == self.meta_tablero[f2][c2] == self.meta_tablero[f3][c3]
+            ):
                 return v1
         return None
 
@@ -176,15 +198,15 @@ class Tablero:
         """
         Verifica si el juego está empatado (tablero lleno, sin ganador).
 
-        Returns:
+        Retorna:
             True si está empatado
         """
         if self.detectar_ganador_meta() is not None:
             return False
         return all(
             self.meta_tablero[f][c] is not None
-            for f in range(TAMAÑO_META)
-            for c in range(TAMAÑO_META)
+            for f in range(DIMENSION_META)
+            for c in range(DIMENSION_META)
         )
 
     # ===== MÉTODOS DE ESTADO =====
@@ -200,46 +222,51 @@ class Tablero:
         """
         Verifica si se puede jugar en un mini-tablero.
 
-        Returns:
+        Retorna:
             False si: ya fue ganado, está lleno, o es un empate
             True si: todavía tiene casillas vacías
         """
         return self.meta_tablero[fila_meta][col_meta] is None
 
-    # ===== REPRESENTACIÓN Y DEBUG =====
+    # ===== REPRESENTACIÓN PARA LA TERMINAL =====
 
     def __str__(self) -> str:
         """
-        Retorna representación en string del tablero para mostrar en terminal.
+        Retorna una cadena con el tablero listo para mostrar en la terminal.
         """
+
         def simbolo_celda(valor: Optional[str]) -> str:
-            return valor if valor else '.'
+            """Convierte una casilla vacía en un punto para mostrarla."""
+            return valor if valor else "."
 
         def simbolo_meta(valor: Optional[str]) -> str:
+            """Convierte el resultado de un campo en un símbolo visible."""
             if valor in (JUGADOR_X, JUGADOR_O):
                 return valor
-            if valor == 'EMPATE':
-                return '='
-            return '.'
+            if valor == "EMPATE":
+                return "="
+            return "."
 
         filas_tablero = []
-        for fila_meta in range(TAMAÑO_META):
-            for fila_mini in range(TAMAÑO_MINI):
+        for fila_meta in range(DIMENSION_META):
+            for fila_mini in range(DIMENSION_MINI):
                 grupos = []
-                for col_meta in range(TAMAÑO_META):
-                    idx = self._indice_mini(fila_meta, col_meta)
-                    fila_valores = self.mini_tableros[idx][fila_mini]
-                    grupos.append(' '.join(simbolo_celda(c) for c in fila_valores))
-                filas_tablero.append(' | '.join(grupos))
-            if fila_meta < TAMAÑO_META - 1:
-                filas_tablero.append('-' * 29)
+                for col_meta in range(DIMENSION_META):
+                    indice_mini = self._indice_mini(fila_meta, col_meta)
+                    fila_valores = self.mini_tableros[indice_mini][fila_mini]
+                    grupos.append(" ".join(simbolo_celda(c) for c in fila_valores))
+                filas_tablero.append(" | ".join(grupos))
+            if fila_meta < DIMENSION_META - 1:
+                filas_tablero.append("-" * 29)
 
-        resumen_meta = '\n'.join(
-            ' '.join(simbolo_meta(self.meta_tablero[f][c]) for c in range(TAMAÑO_META))
-            for f in range(TAMAÑO_META)
+        resumen_meta = "\n".join(
+            " ".join(
+                simbolo_meta(self.meta_tablero[f][c]) for c in range(DIMENSION_META)
+            )
+            for f in range(DIMENSION_META)
         )
 
-        return '\n'.join(filas_tablero) + '\n\nMETA-TABLERO:\n' + resumen_meta
+        return "\n".join(filas_tablero) + "\n\nMETA-TABLERO:\n" + resumen_meta
 
     def copiar(self) -> "Tablero":
         """
@@ -255,9 +282,9 @@ class Tablero:
         nuevo.meta_tablero = [fila[:] for fila in self.meta_tablero]
         return nuevo
 
-    # ===== MÉTODOS PARA SERIALIZACIÓN (DEBUG) =====
+    # ===== IDENTIFICACIÓN DEL ESTADO =====
 
-    def get_estado_hash(self) -> int:
+    def obtener_hash_estado(self) -> int:
         """
         Retorna un identificador hash del estado actual.
 

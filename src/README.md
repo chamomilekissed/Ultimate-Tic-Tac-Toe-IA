@@ -22,7 +22,7 @@ python -m src.main
 | `interfaz.py` | Lee coordenadas, valida texto y muestra el tablero. |
 | `main.py` | Inicia la partida requerida entre el sistema y el jugador externo. |
 | `transcripciones.py` | Guarda partidas en Markdown dentro de `casos_de_estudio/`. |
-| `torneo.py` | Ejecuta varias partidas IA vs IA y guarda sus resultados. |
+| `torneo.py` | Herramienta interna para calibrar y medir la IA; no es un modo de entrega. |
 
 ## Relación entre módulos
 
@@ -83,6 +83,10 @@ igual después de buscar porque cada jugada simulada se deshace en un bloque
 `try/finally`.
 
 ## Torneos
+
+Esta sección describe una herramienta de desarrollo. El programa que se
+entrega y ejecuta en Spyder solo ofrece la partida entre el sistema y el
+jugador externo.
 
 Ejemplo de diez partidas con un segundo máximo por movimiento:
 

@@ -6,13 +6,15 @@ Esta carpeta reúne las explicaciones que complementan el `README.md` principal.
 |---|---|
 | `heuristica.md` | Explicación detallada de los siete componentes de evaluación. |
 | `cambios_version_anterior_a_actual.md` | Comparación del código anterior con el actual y motivo de cada cambio. |
+| `revision_rubrica.md` | Comprobación de legibilidad, requisitos, ponderaciones y entrega. |
 | `readme_version_anterior.md` | README conservado de la versión anterior como evidencia histórica. |
 
 ## Orden recomendado de lectura
 
 1. Leer el `README.md` de la raíz para entender el juego y su estructura.
 2. Leer `cambios_version_anterior_a_actual.md` para identificar qué se corrigió.
-3. Consultar `heuristica.md` cuando se necesiten detalles técnicos o ejemplos
+3. Leer `revision_rubrica.md` antes de preparar la entrega.
+4. Consultar `heuristica.md` cuando se necesiten detalles técnicos o ejemplos
    numéricos.
 
 Los documentos de esta carpeta explican el código actual. Cuando muestran una

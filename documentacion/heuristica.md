@@ -204,7 +204,7 @@ Una victoria detectada durante la búsqueda usa `10000 - nivel`; una derrota usa
 Para revisar una posición manualmente se puede usar:
 
 ```python
-evaluar_posicion(tablero, es_maximizando, tablero_destino, debug=True)
+evaluar_posicion(tablero, es_maximizando, tablero_destino, mostrar_desglose=True)
 ```
 
 El programa imprime el valor crudo, el peso y la aportación final de cada uno

@@ -14,11 +14,27 @@ proyecto.
 | Abrir el proyecto en Spyder o entregar un solo archivo | `codigo_final_spyder/gato_de_gatos.py` |
 | Estudiar o modificar el programa por módulos | `python -m src.main` |
 | Ejecutar las 200 pruebas finales | `python -m pytest tests/test_gato_de_gatos.py -q` |
+| Revisar el cumplimiento de la rúbrica | `documentacion/revision_rubrica.md` |
 | Consultar la versión anterior | `version_anterior/gato_de_gatos_anterior.py` |
 
 > La versión oficial actual es `codigo_final_spyder/gato_de_gatos.py`. La
 > carpeta `version_anterior/` se conserva únicamente para comparar el proceso
 > de mejora; no es la versión que se debe entregar.
+
+### Preparación del archivo que se envía
+
+El documento del proyecto pide enviar **un solo archivo de código con extensión
+`.txt`**, además de la presentación. Para preparar ese archivo sin perder la
+versión ejecutable:
+
+1. comprobar el programa en Spyder con `gato_de_gatos.py`;
+2. hacer una copia del archivo;
+3. cambiar el nombre de la copia por el nombre solicitado para el equipo y
+   usar la extensión `.txt`;
+4. enviar esa copia y el PowerPoint, no toda la carpeta `src/`.
+
+El contenido de `src/`, las pruebas y los casos de estudio queda en GitHub como
+evidencia del desarrollo, pero no sustituye al archivo único de entrega.
 
 ## Cómo ejecutar el juego
 
@@ -76,6 +92,15 @@ g | h | i
 Un movimiento usa dos letras: primero el campo y después la posición. Por
 ejemplo, `Gc` significa **campo G, posición c**.
 
+Antes de pedir una jugada externa, la interfaz ahora muestra una de estas dos
+ayudas:
+
+- `Campo obligatorio: E`, junto con las posiciones disponibles; o
+- `Elección libre`, junto con los campos que siguen abiertos.
+
+Esto permite detectar una coordenada equivocada antes de perder la partida por
+un error de captura.
+
 La posición elegida determina el campo donde deberá jugar el oponente. Si ese
 campo ya está ganado o empatado, el oponente puede escoger cualquier campo que
 siga abierto.
@@ -94,7 +119,7 @@ Ultimate-Tic-Tac-Toe-IA/
 │   ├── interfaz.py                   Entrada y salida en terminal
 │   ├── main.py                       Partida de torneo y turnos
 │   ├── transcripciones.py            Registro de partidas
-│   └── torneo.py                     Partidas automáticas IA vs IA
+│   └── torneo.py                     Herramienta interna de calibración
 ├── codigo_final_spyder/              Versión actual en un solo archivo
 ├── tests/                            Pruebas finales e históricas
 ├── documentacion/                    Explicaciones técnicas y cambios
@@ -172,7 +197,7 @@ margen.
 
 ### Tabla de transposiciones
 
-La clase `TranspositionTable` evita recalcular posiciones repetidas. Cada
+La clase `TablaTransposiciones` evita recalcular posiciones repetidas. Cada
 entrada indica si el valor es:
 
 - exacto;
@@ -181,6 +206,20 @@ entrada indica si el valor es:
 
 Esta distinción es necesaria porque una rama cortada por alfa-beta no siempre
 produce un valor exacto.
+
+## Convenciones de legibilidad
+
+El código sigue las convenciones de nombres de Python:
+
+- funciones, métodos, parámetros y variables en `snake_case`;
+- constantes en `MAYÚSCULAS_CON_GUIONES_BAJOS`;
+- clases y tipos en `PascalCase`, como indica la convención de Python;
+- comentarios y explicaciones en español;
+- importaciones explícitas, sin `from modulo import *`;
+- ningún uso de `break`, `continue` o `pass`.
+
+Los nombres de clases no se escriben en `snake_case` porque hacerlo rompería la
+convención propia del lenguaje que la rúbrica también pide respetar.
 
 ## Función heurística
 
@@ -259,13 +298,15 @@ versión modular y el archivo de Spyder.
 - [`codigo_final_spyder/README.md`](codigo_final_spyder/README.md): cómo usar el archivo de entrega.
 - [`tests/README.md`](tests/README.md): distribución de los casos de prueba.
 - [`documentacion/README.md`](documentacion/README.md): índice de documentación.
+- [`documentacion/revision_rubrica.md`](documentacion/revision_rubrica.md):
+  comprobación punto por punto del código y de la forma de entrega.
 - [`casos_de_estudio/README.md`](casos_de_estudio/README.md): partidas analizadas.
 - [`version_anterior/README.md`](version_anterior/README.md): propósito del código conservado.
 
 ## Estado actual
 
 - El código modular y el archivo para Spyder están sincronizados.
-- Las 200 pruebas finales y las 20 históricas deben aprobar.
+- Las 200 pruebas finales y las 20 históricas aprobaron en la revisión final.
 - GitHub Actions compila el proyecto y ejecuta la suite final en cada pull
   request.
 - Los cambios de organización se preparan en una rama antes de llegar a

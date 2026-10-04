@@ -8,15 +8,11 @@ en README.md y se verifica con ``pytest --collect-only``.
 import ast
 import importlib.util
 import random
-import sys
+import re
 import time
 from pathlib import Path
 
 import pytest
-
-
-RAIZ = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(RAIZ))
 
 from src import config
 from src import evaluador
@@ -25,6 +21,9 @@ from src import main
 from src import minimax
 from src import movimientos
 from src import tablero
+
+
+RAIZ = Path(__file__).resolve().parents[1]
 
 
 def cargar_archivo_unico():
@@ -45,9 +44,7 @@ def final():
 
 
 COORDENADAS_VALIDAS = [
-    (campo, posicion)
-    for campo in config.CAMPOS
-    for posicion in ("a", "i")
+    (campo, posicion) for campo in config.CAMPOS for posicion in ("a", "i")
 ]
 
 CASOS_LINEA = [
@@ -58,14 +55,20 @@ CASOS_LINEA = [
 
 DESTINOS = [
     (fila, columna)
-    for fila in range(config.TAMAÑO_META)
-    for columna in range(config.TAMAÑO_META)
+    for fila in range(config.DIMENSION_META)
+    for columna in range(config.DIMENSION_META)
 ]
 
 PATRON_EMPATE = (
-    (0, 0, "X"), (0, 1, "O"), (0, 2, "X"),
-    (1, 0, "X"), (1, 1, "O"), (1, 2, "O"),
-    (2, 0, "O"), (2, 1, "X"), (2, 2, "X"),
+    (0, 0, "X"),
+    (0, 1, "O"),
+    (0, 2, "X"),
+    (1, 0, "X"),
+    (1, 1, "O"),
+    (1, 2, "O"),
+    (2, 0, "O"),
+    (2, 1, "X"),
+    (2, 2, "X"),
 )
 
 
@@ -101,8 +104,7 @@ def intercambiar_jugadores(estado):
         for mini in estado.mini_tableros
     ]
     nuevo.meta_tablero = [
-        [cambio[celda] for celda in fila]
-        for fila in estado.meta_tablero
+        [cambio[celda] for celda in fila] for fila in estado.meta_tablero
     ]
     return nuevo
 
@@ -159,8 +161,8 @@ def test_05_aplicar_y_deshacer(destino, final):
     modular = tablero.Tablero()
     unico = final.Tablero()
     movimiento = (*destino, 1, 1)
-    hash_inicial_modular = modular.get_estado_hash()
-    hash_inicial_unico = unico.get_estado_hash()
+    hash_inicial_modular = modular.obtener_hash_estado()
+    hash_inicial_unico = unico.obtener_hash_estado()
 
     assert modular.aplicar_movimiento(*movimiento, config.JUGADOR_X)
     assert unico.aplicar_movimiento(*movimiento, config.JUGADOR_X)
@@ -168,8 +170,8 @@ def test_05_aplicar_y_deshacer(destino, final):
     assert unico.obtener_casilla(*movimiento) == config.JUGADOR_X
     assert modular.deshacer_movimiento()
     assert unico.deshacer_movimiento()
-    assert modular.get_estado_hash() == hash_inicial_modular
-    assert unico.get_estado_hash() == hash_inicial_unico
+    assert modular.obtener_hash_estado() == hash_inicial_modular
+    assert unico.obtener_hash_estado() == hash_inicial_unico
 
 
 # 9 casos: empatar cada campo debe liberar el siguiente destino.
@@ -215,12 +217,22 @@ def test_08_minimax_completa_victoria_global(linea, final):
 
     esperada = (0, 2, *linea[2])
     resultado_modular = minimax.obtener_mejor_movimiento_hoja(
-        modular, 1, float("-inf"), float("inf"), True, (0, 2),
-        minimax.TranspositionTable(),
+        modular,
+        1,
+        float("-inf"),
+        float("inf"),
+        True,
+        (0, 2),
+        minimax.TablaTransposiciones(),
     )
     resultado_unico = final.obtener_mejor_movimiento_hoja(
-        unico, 1, float("-inf"), float("inf"), True, (0, 2),
-        final.TranspositionTable(),
+        unico,
+        1,
+        float("-inf"),
+        float("inf"),
+        True,
+        (0, 2),
+        final.TablaTransposiciones(),
     )
 
     assert resultado_modular is not None
@@ -259,15 +271,21 @@ def test_10_validaciones_extremas_de_reglas(final):
 
 def test_11_tabla_de_transposiciones_con_cotas(final):
     for modulo in (minimax, final):
-        cache = modulo.TranspositionTable()
-        cache.guardar("exacta", 12, modulo.TIPO_EXACTO)
-        cache.guardar("inferior", 20, modulo.TIPO_COTA_INFERIOR)
-        cache.guardar("superior", -5, modulo.TIPO_COTA_SUPERIOR)
-        assert cache.obtener("exacta") == (12, modulo.TIPO_EXACTO)
-        assert cache.obtener("inferior") == (20, modulo.TIPO_COTA_INFERIOR)
-        assert cache.obtener("superior") == (-5, modulo.TIPO_COTA_SUPERIOR)
-        cache.limpiar()
-        assert cache.obtener("exacta") is None
+        tabla_transposiciones = modulo.TablaTransposiciones()
+        tabla_transposiciones.guardar("exacta", 12, modulo.TIPO_EXACTO)
+        tabla_transposiciones.guardar("inferior", 20, modulo.TIPO_COTA_INFERIOR)
+        tabla_transposiciones.guardar("superior", -5, modulo.TIPO_COTA_SUPERIOR)
+        assert tabla_transposiciones.obtener("exacta") == (12, modulo.TIPO_EXACTO)
+        assert tabla_transposiciones.obtener("inferior") == (
+            20,
+            modulo.TIPO_COTA_INFERIOR,
+        )
+        assert tabla_transposiciones.obtener("superior") == (
+            -5,
+            modulo.TIPO_COTA_SUPERIOR,
+        )
+        tabla_transposiciones.limpiar()
+        assert tabla_transposiciones.obtener("exacta") is None
 
 
 def test_12_limite_de_tiempo_no_muta_el_tablero(final):
@@ -311,9 +329,9 @@ def test_13_paridad_entre_modulos_y_archivo_unico(final):
 
     assert modular.mini_tableros == unico.mini_tableros
     assert modular.meta_tablero == unico.meta_tablero
-    assert evaluador.evaluar_posicion(modular, es_turno_x, destino) == final.evaluar_posicion(
-        unico, es_turno_x, destino
-    )
+    assert evaluador.evaluar_posicion(
+        modular, es_turno_x, destino
+    ) == final.evaluar_posicion(unico, es_turno_x, destino)
 
 
 def test_14_partida_completa_rapida_en_archivo_unico(final):
@@ -337,8 +355,7 @@ def test_14_partida_completa_rapida_en_archivo_unico(final):
         es_turno_x = not es_turno_x
         turnos += 1
         partida_terminada = (
-            estado.detectar_ganador_meta() is not None
-            or estado.verificar_empate()
+            estado.detectar_ganador_meta() is not None or estado.verificar_empate()
         )
 
     assert partida_terminada
@@ -354,6 +371,46 @@ def test_15_sin_break_continue_ni_pass():
             if isinstance(nodo, prohibidas):
                 hallazgos.append(f"{ruta.relative_to(RAIZ)}:{nodo.lineno}")
     assert hallazgos == []
+
+    # La convención de Python usa snake_case en funciones y parámetros.
+    # Las clases conservan PascalCase y las constantes MAYÚSCULAS_CON_GUIONES.
+    patron_snake_case = re.compile(r"^_*[a-z][a-z0-9_]*$|^__[a-z0-9_]+__$")
+    rutas_actuales = sorted((RAIZ / "src").glob("*.py")) + [
+        RAIZ / "codigo_final_spyder" / "gato_de_gatos.py"
+    ]
+    nombres_invalidos = []
+    elementos_sin_documentar = []
+    importaciones_globales = []
+    for ruta in rutas_actuales:
+        arbol = ast.parse(ruta.read_text(encoding="utf-8"), filename=str(ruta))
+        for nodo in ast.walk(arbol):
+            if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                if ast.get_docstring(nodo) is None:
+                    elementos_sin_documentar.append(
+                        f"{ruta.relative_to(RAIZ)}:{nodo.lineno}:{nodo.name}"
+                    )
+            if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if not patron_snake_case.fullmatch(nodo.name):
+                    nombres_invalidos.append(
+                        f"{ruta.relative_to(RAIZ)}:{nodo.lineno}:{nodo.name}"
+                    )
+                argumentos = (
+                    nodo.args.posonlyargs + nodo.args.args + nodo.args.kwonlyargs
+                )
+                for argumento in argumentos:
+                    if not patron_snake_case.fullmatch(argumento.arg):
+                        nombres_invalidos.append(
+                            f"{ruta.relative_to(RAIZ)}:{argumento.lineno}:"
+                            f"{argumento.arg}"
+                        )
+            if isinstance(nodo, ast.ImportFrom):
+                if any(nombre.name == "*" for nombre in nodo.names):
+                    importaciones_globales.append(
+                        f"{ruta.relative_to(RAIZ)}:{nodo.lineno}"
+                    )
+    assert nombres_invalidos == []
+    assert elementos_sin_documentar == []
+    assert importaciones_globales == []
 
 
 # =============================================================================
@@ -456,9 +513,10 @@ def test_21_destino_cerrado_otorga_libertad(destino, final):
     ):
         estado = clase()
         estado.meta_tablero[destino[0]][destino[1]] = "EMPATE"
-        assert modulo.evaluar_amenaza_destino(
-            estado, destino, config.JUGADOR_X
-        ) == config.BONO_LIBERTAD_ELECCION
+        assert (
+            modulo.evaluar_amenaza_destino(estado, destino, config.JUGADOR_X)
+            == config.BONO_LIBERTAD_ELECCION
+        )
 
 
 # 16 casos: el análisis del destino futuro debe reconocer una victoria local
@@ -474,9 +532,7 @@ def test_22_destino_futuro_reconoce_victoria_local(jugador, linea, final):
         mini = estado.obtener_mini_tablero(*destino)
         for fila, columna in linea[:2]:
             mini[fila][columna] = jugador
-        assert modulo.evaluar_amenaza_destino_futura(
-            estado, destino, jugador
-        ) > 0
+        assert modulo.evaluar_amenaza_destino_futura(estado, destino, jugador) > 0
 
 
 # Los siete casos siguientes llevan la suite principal al total exacto de 200.
@@ -484,8 +540,13 @@ def test_23_raiz_minimax_no_elige_una_cota_inferior_como_empate():
     estado, destino, es_turno_x = crear_estado_aleatorio(2, 12)
     assert es_turno_x
     resultado = minimax.obtener_mejor_movimiento_hoja(
-        estado, 3, float("-inf"), float("inf"), True, destino,
-        minimax.TranspositionTable(),
+        estado,
+        3,
+        float("-inf"),
+        float("inf"),
+        True,
+        destino,
+        minimax.TablaTransposiciones(),
     )
     assert resultado is not None
     elegido = resultado[:4]
@@ -495,9 +556,14 @@ def test_23_raiz_minimax_no_elige_una_cota_inferior_como_empate():
         assert estado.aplicar_movimiento(*movimiento, config.JUGADOR_X)
         try:
             valores_exactos[movimiento] = minimax.minimax(
-                estado, 2, float("-inf"), float("inf"), False,
+                estado,
+                2,
+                float("-inf"),
+                float("inf"),
+                False,
                 (movimiento[2], movimiento[3]),
-                minimax.TranspositionTable(), nivel=1,
+                minimax.TablaTransposiciones(),
+                nivel=1,
             )
         finally:
             assert estado.deshacer_movimiento()
@@ -505,7 +571,7 @@ def test_23_raiz_minimax_no_elige_una_cota_inferior_como_empate():
     assert valores_exactos[elegido] == max(valores_exactos.values())
 
 
-def test_24_pregunta_inicial_sistema(monkeypatch, final):
+def test_24_pregunta_inicial_sistema(monkeypatch, capsys, final):
     monkeypatch.setattr("builtins.input", lambda mensaje: "s")
     assert interfaz.solicitar_primer_jugador() == "SISTEMA"
     assert final.solicitar_primer_jugador() == "SISTEMA"
@@ -517,6 +583,17 @@ def test_24_pregunta_inicial_sistema(monkeypatch, final):
     assert not hasattr(final, "jugar")
     assert not hasattr(final, "jugar_ia_vs_ia")
     assert not hasattr(final, "jugar_con_menu")
+
+    legales_modulares = movimientos.movimientos_validos(tablero.Tablero(), (1, 1))
+    interfaz.mostrar_opciones_movimiento(legales_modulares)
+    salida_modular = capsys.readouterr().out
+    assert "Campo obligatorio: E" in salida_modular
+    assert "Ea" in salida_modular and "Ei" in salida_modular
+
+    legales_unicos = final.movimientos_validos(final.Tablero(), (1, 1))
+    final.mostrar_opciones_movimiento(legales_unicos)
+    salida_unica = capsys.readouterr().out
+    assert "Campo obligatorio: E" in salida_unica
 
 
 def test_25_pregunta_inicial_externo_y_reintento(monkeypatch, final):
@@ -551,9 +628,7 @@ def test_26_presupuestos_aprovechan_el_limite_sin_superarlo(final):
 def test_27_no_hay_desempate_aleatorio_en_minimax():
     fuentes = (
         (RAIZ / "src" / "minimax.py").read_text(encoding="utf-8"),
-        (RAIZ / "codigo_final_spyder" / "gato_de_gatos.py").read_text(
-            encoding="utf-8"
-        ),
+        (RAIZ / "codigo_final_spyder" / "gato_de_gatos.py").read_text(encoding="utf-8"),
     )
     assert all("random.choice" not in fuente for fuente in fuentes)
 
@@ -571,19 +646,34 @@ def test_28_contenido_fantasma_no_cambia_la_evaluacion(final):
         mini[0] = [config.JUGADOR_X, config.JUGADOR_X, None]
         mini[1] = [config.JUGADOR_O, config.JUGADOR_O, None]
 
-        assert modulo.evaluar_posicion(
-            limpio, True, (1, 1)
-        ) == modulo.evaluar_posicion(fantasma, True, (1, 1))
+        assert modulo.evaluar_posicion(limpio, True, (1, 1)) == modulo.evaluar_posicion(
+            fantasma, True, (1, 1)
+        )
 
 
 def test_29_valores_no_terminales_respetan_reserva_terminal(final):
+    nombres_pesos = (
+        "PESO_PROGRESO_META_TABLERO",
+        "PESO_AMENAZAS_BIFURCACIONES",
+        "PESO_DEFENSA_CRITICA",
+        "PESO_POSICIONES_CLAVE",
+        "PESO_CONTROL_LOCAL",
+        "PESO_AMENAZA_DESTINO",
+        "PESO_AMENAZA_DESTINO_FUTURA",
+    )
+    pesos_esperados = (18, 6, 5, 6, 1, 8, 4)
+    assert tuple(getattr(config, nombre) for nombre in nombres_pesos) == (
+        pesos_esperados
+    )
+    assert tuple(getattr(final, nombre) for nombre in nombres_pesos) == (
+        pesos_esperados
+    )
+
     for semilla in range(20):
         estado, destino, es_turno_x = crear_estado_aleatorio(
             1000 + semilla, 8 + semilla
         )
-        valor_modular = evaluador.evaluar_posicion(
-            estado, es_turno_x, destino
-        )
+        valor_modular = evaluador.evaluar_posicion(estado, es_turno_x, destino)
         unico = final.Tablero()
         unico.mini_tableros = [
             [fila[:] for fila in mini] for mini in estado.mini_tableros

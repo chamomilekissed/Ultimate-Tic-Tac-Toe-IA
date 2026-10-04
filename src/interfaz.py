@@ -14,22 +14,34 @@ Convención del profesor:
 - Formato de movimiento: "Gc" = jugar en campo G, posición c
 """
 
-from .config import *
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple
+
 from . import tablero as tb
+from .config import (
+    CAMPOS,
+    DIMENSION_META,
+    DIMENSION_MINI,
+    INDICES_INVERSOS,
+    INDICES_MINI_INVERSOS,
+    JUGADOR_O,
+    JUGADOR_X,
+    POSICIONES_MINI,
+)
 
 
 def _simbolo_campo(tablero: "tb.Tablero", fila_meta: int, col_meta: int) -> str:
     """Retorna el símbolo a mostrar para un campo del meta-tablero: su letra (A-I) si sigue en juego, o 'X'/'O'/'=' si ya se decidió."""
     valor = tablero.meta_tablero[fila_meta][col_meta]
-    if valor == 'EMPATE':
-        return '='
+    if valor == "EMPATE":
+        return "="
     if valor in (JUGADOR_X, JUGADOR_O):
         return valor
     return INDICES_INVERSOS[(fila_meta, col_meta)]
 
 
-def _simbolo_celda(tablero: "tb.Tablero", fila_meta: int, col_meta: int, fila_mini: int, col_mini: int) -> str:
+def _simbolo_celda(
+    tablero: "tb.Tablero", fila_meta: int, col_meta: int, fila_mini: int, col_mini: int
+) -> str:
     """Retorna el símbolo a mostrar para una casilla: su letra (a-i) si está vacía, o 'X'/'O' si está ocupada."""
     valor = tablero.obtener_casilla(fila_meta, col_meta, fila_mini, col_mini)
     if valor is not None:
@@ -46,35 +58,40 @@ def mostrar_tablero(tablero: "tb.Tablero") -> None:
     para que el jugador identifique de inmediato qué escribir.
     """
     print("TABLERO ACTUAL:\n")
-    for bloque_fila in range(TAMAÑO_META):
+    for bloque_fila in range(DIMENSION_META):
         encabezados = []
-        for col_meta in range(TAMAÑO_META):
+        for col_meta in range(DIMENSION_META):
             letra_campo = INDICES_INVERSOS[(bloque_fila, col_meta)]
             estado = tablero.meta_tablero[bloque_fila][col_meta]
             etiqueta = f"CAMPO {letra_campo}"
             if estado in (JUGADOR_X, JUGADOR_O):
                 etiqueta += f" [ganador: {estado}]"
-            elif estado == 'EMPATE':
+            elif estado == "EMPATE":
                 etiqueta += " [empate]"
             encabezados.append(etiqueta.ljust(20))
         print("  ".join(encabezados))
 
-        for fila_mini in range(TAMAÑO_MINI):
+        for fila_mini in range(DIMENSION_MINI):
             partes = []
-            for col_meta in range(TAMAÑO_META):
+            for col_meta in range(DIMENSION_META):
                 celdas = [
                     _simbolo_celda(tablero, bloque_fila, col_meta, fila_mini, col_mini)
-                    for col_mini in range(TAMAÑO_MINI)
+                    for col_mini in range(DIMENSION_MINI)
                 ]
-                partes.append('  '.join(celdas).ljust(20))
+                partes.append("  ".join(celdas).ljust(20))
             print("  ".join(partes))
         print()
 
     print("META-TABLERO:")
-    for fila_meta in range(TAMAÑO_META):
-        print(' | '.join(_simbolo_campo(tablero, fila_meta, c) for c in range(TAMAÑO_META)))
-        if fila_meta < TAMAÑO_META - 1:
-            print('-' * 9)
+    for fila_meta in range(DIMENSION_META):
+        print(
+            " | ".join(
+                _simbolo_campo(tablero, fila_meta, columna)
+                for columna in range(DIMENSION_META)
+            )
+        )
+        if fila_meta < DIMENSION_META - 1:
+            print("-" * 9)
 
 
 def mostrar_mensaje(mensaje: str) -> None:
@@ -82,6 +99,52 @@ def mostrar_mensaje(mensaje: str) -> None:
     Imprime un mensaje de estado al usuario.
     """
     print(mensaje)
+
+
+def convertir_movimiento_a_texto(movimiento: Tuple[int, int, int, int]) -> str:
+    """Convierte cuatro índices internos a la notación del torneo, como ``Gc``.
+
+    Parámetros:
+        movimiento: Tupla ``(fila_meta, columna_meta, fila_mini,
+            columna_mini)``; cada índice debe estar entre 0 y 2.
+
+    Retorna:
+        Dos caracteres: campo en mayúscula y posición en minúscula.
+    """
+    fila_meta, col_meta, fila_mini, col_mini = movimiento
+    campo = INDICES_INVERSOS[(fila_meta, col_meta)]
+    posicion = INDICES_MINI_INVERSOS[(fila_mini, col_mini)]
+    return campo + posicion
+
+
+def mostrar_opciones_movimiento(
+    movimientos_legales: Sequence[Tuple[int, int, int, int]],
+) -> None:
+    """Explica el campo permitido antes de pedir la jugada del oponente.
+
+    Si todos los movimientos pertenecen al mismo campo, muestra ese campo y
+    las posiciones disponibles. Si la regla permite elección libre, muestra
+    los campos abiertos. La lista recibida debe provenir de
+    ``movimientos_validos()``.
+    """
+    campos = sorted(
+        {
+            INDICES_INVERSOS[(movimiento[0], movimiento[1])]
+            for movimiento in movimientos_legales
+        }
+    )
+    if len(campos) == 1:
+        opciones = ", ".join(
+            convertir_movimiento_a_texto(movimiento)
+            for movimiento in movimientos_legales
+        )
+        mostrar_mensaje(
+            f"Campo obligatorio: {campos[0]}. Movimientos disponibles: {opciones}."
+        )
+    elif campos:
+        mostrar_mensaje(
+            "Elección libre. Campos disponibles: " + ", ".join(campos) + "."
+        )
 
 
 def convertir_texto_a_movimiento(entrada: str) -> Tuple[int, int, int, int]:
@@ -122,7 +185,7 @@ def obtener_movimiento_usuario() -> Tuple[int, int, int, int]:
 
     Repite la petición hasta recibir una entrada válida.
 
-    Returns:
+    Retorna:
         Tupla (fila_meta, col_meta, fila_mini, col_mini)
     """
     movimiento = None
@@ -135,11 +198,13 @@ def obtener_movimiento_usuario() -> Tuple[int, int, int, int]:
     return movimiento
 
 
-def mostrar_movimiento(campo: str, posicion: Optional[str] = None, jugador: Optional[str] = None) -> None:
+def mostrar_movimiento(
+    campo: str, posicion: Optional[str] = None, jugador: Optional[str] = None
+) -> None:
     """
     Muestra un movimiento en formato "Campo+Posición" (ej. "Gc").
 
-    Args:
+    Parámetros:
         campo: Letra del campo ('G'), o el movimiento completo ('Gc') si posicion es None
         posicion: Letra de la posición ('c'), opcional si ya viene junto en campo
         jugador: Nombre de quién juega (por defecto "Jugador")
@@ -149,7 +214,9 @@ def mostrar_movimiento(campo: str, posicion: Optional[str] = None, jugador: Opti
     mostrar_mensaje(f"{quien} juega: {movimiento}")
 
 
-def mostrar_movimiento_ia(fila_meta: int, col_meta: int, fila_mini: int, col_mini: int) -> None:
+def mostrar_movimiento_ia(
+    fila_meta: int, col_meta: int, fila_mini: int, col_mini: int
+) -> None:
     """
     Muestra el movimiento que hizo la IA.
 
@@ -185,14 +252,16 @@ def solicitar_primer_jugador() -> str:
     sistema y ``E`` al jugador externo. Quien comienza recibe internamente el
     símbolo X; la otra parte recibe O.
 
-    Returns:
+    Retorna:
         ``'SISTEMA'`` o ``'EXTERNO'``.
     """
     respuesta = ""
     while respuesta not in ("S", "E"):
-        respuesta = input(
-            "¿A quién le toca comenzar? [S]istema / jugador [E]xterno: "
-        ).strip().upper()
+        respuesta = (
+            input("¿A quién le toca comenzar? [S]istema / jugador [E]xterno: ")
+            .strip()
+            .upper()
+        )
         if respuesta in ("S", "E"):
             mostrar_mensaje(
                 "Comienza nuestro sistema y jugará como X."
@@ -200,9 +269,7 @@ def solicitar_primer_jugador() -> str:
                 else "Comienza el jugador externo y jugará como X."
             )
         else:
-            mostrar_mensaje(
-                f"Respuesta inválida: '{respuesta}'. Escribe 'S' o 'E'."
-            )
+            mostrar_mensaje(f"Respuesta inválida: '{respuesta}'. Escribe 'S' o 'E'.")
     return "SISTEMA" if respuesta == "S" else "EXTERNO"
 
 

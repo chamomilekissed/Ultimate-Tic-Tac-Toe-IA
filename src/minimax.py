@@ -1,16 +1,15 @@
 """
 MÓDULO: minimax.py
 RESPONSABLE: Persona B
-DESCRIPCIÓN: Algoritmo Minimax con optimizaciones (Alpha-Beta, Transposition Tables, etc.)
+DESCRIPCIÓN: Algoritmo Minimax con optimizaciones de búsqueda
 
 Este es el corazón de la IA. Usa búsqueda adversarial para decidir el mejor movimiento.
 
 Optimizaciones implementadas:
-1. Alpha-Beta Pruning (reduce búsqueda exponencialmente)
-2. Transposition Tables (cachea posiciones ya evaluadas, con límite de tamaño)
-3. Move Ordering (poda más agresivamente; incluye PV move ordering entre
-   profundidades del iterative deepening)
-4. Iterative Deepening (usa tiempo eficientemente, con corte duro si se agota,
+1. Poda alfa-beta (reduce la cantidad de ramas revisadas)
+2. Tabla de transposiciones (reutiliza posiciones ya evaluadas)
+3. Ordenamiento de movimientos (prueba primero las jugadas prometedoras)
+4. Profundización iterativa (usa el tiempo eficientemente, con corte si se agota,
    presupuesto de tiempo adaptativo por etapa de partida, y corte anticipado
    si ya se probó una victoria/derrota forzada)
 5. Valores terminales ajustados por profundidad (VALOR_GANADOR - nivel): la
@@ -23,21 +22,38 @@ Optimizaciones implementadas:
 
 import time
 from typing import Optional, Tuple, Dict, List
-from .config import *
+
 from . import tablero as tb
 from . import movimientos as mov
 from . import evaluador as ev
+from .config import (
+    CASILLAS_RESTANTES_APERTURA,
+    CASILLAS_RESTANTES_MEDIO,
+    IMPORTANCIA_CAMPO,
+    JUGADOR_O,
+    JUGADOR_X,
+    LIMITE_ESTADOS_MEMORIA,
+    LINEAS_MINI_TABLERO,
+    TIEMPO_APERTURA,
+    TIEMPO_FINAL_PARTIDA,
+    TIEMPO_LIMITE,
+    TIEMPO_MEDIO_PARTIDA,
+    VALOR_EMPATE,
+    VALOR_GANADOR,
+    VALOR_PERDEDOR,
+)
 
 
-# ===== TRANSPOSITION TABLES (CACHE GLOBAL) =====
+# ===== TABLA DE TRANSPOSICIONES =====
 
 TIPO_EXACTO = "EXACTO"
 TIPO_COTA_INFERIOR = "COTA_INFERIOR"
 TIPO_COTA_SUPERIOR = "COTA_SUPERIOR"
 
-class TranspositionTable:
+
+class TablaTransposiciones:
     """
-    Cachea evaluaciones de posiciones para no recalcularlas.
+    Guarda evaluaciones de posiciones para no calcularlas de nuevo.
 
     En Ultimate Tic-Tac-Toe, distintas secuencias de movimientos pueden
     llevar al mismo estado (transposición); reutilizar su evaluación es
@@ -49,11 +65,10 @@ class TranspositionTable:
     """
 
     def __init__(self):
-        """Inicializa la tabla de transposición vacía."""
+        """Inicializa una tabla de transposiciones vacía."""
         self.tabla: Dict[object, Tuple[int, str]] = {}
 
-    def guardar(self, hash_estado: object, valor: int,
-                tipo: str = TIPO_EXACTO) -> None:
+    def guardar(self, hash_estado: object, valor: int, tipo: str = TIPO_EXACTO) -> None:
         """Guarda puntuación y tipo de cota para una clave hasheable.
 
         No guarda más allá de LIMITE_ESTADOS_MEMORIA entradas (config.py):
@@ -75,11 +90,12 @@ class TranspositionTable:
 
 # ===== CONTROL DE TIEMPO =====
 
-class TiempoAgotado(Exception):
+
+class TiempoAgotadoError(Exception):
     """Señal interna para abortar minimax en curso cuando se acaba el tiempo."""
 
 
-# Deadline absoluto (time.monotonic()) durante una llamada a mejor_movimiento().
+# Instante límite absoluto de ``time.monotonic()`` durante la búsqueda.
 # None cuando no hay una búsqueda con límite de tiempo en curso.
 _tiempo_limite_absoluto: Optional[float] = None
 
@@ -94,31 +110,33 @@ _contador_nodos: int = 0
 ultimas_estadisticas: Dict[str, object] = {}
 
 
-# ===== MOVE ORDERING =====
+# ===== ORDENAMIENTO DE MOVIMIENTOS =====
 
-def _mueve_completa_linea(tablero_3x3: List[List[Optional[str]]], fila: int, col: int, valor: str) -> bool:
+
+def _mueve_completa_linea(
+    tablero_3x3: List[List[Optional[str]]], fila: int, col: int, valor: str
+) -> bool:
     """Indica si colocar `valor` en (fila, col) completaría una línea de 3, sin modificar el mini-tablero."""
     return any(
         (fila, col) in linea
-        and all(
-            tablero_3x3[f][c] == valor
-            for f, c in linea
-            if (f, c) != (fila, col)
-        )
+        and all(tablero_3x3[f][c] == valor for f, c in linea if (f, c) != (fila, col))
         for linea in LINEAS_MINI_TABLERO
     )
 
 
-def ordenar_movimientos(tablero: "tb.Tablero", movimientos: list,
-                       tablero_destino: Optional[Tuple[int, int]],
-                       jugador: str,
-                       movimiento_preferido: Optional[Tuple[int, int, int, int]] = None) -> list:
+def ordenar_movimientos(
+    tablero: "tb.Tablero",
+    movimientos: list,
+    tablero_destino: Optional[Tuple[int, int]],
+    jugador: str,
+    movimiento_preferido: Optional[Tuple[int, int, int, int]] = None,
+) -> list:
     """
-    Ordena movimientos para mejorar la poda de Alpha-Beta.
+    Ordena movimientos para mejorar la poda alfa-beta.
 
     Orden: (0) movimiento_preferido si está en la lista (la mejor jugada
-    encontrada en la profundidad anterior del iterative deepening — "PV
-    move ordering": probarla primero suele podar mucho más), (1)
+    encontrada en la profundidad anterior; corresponde a la variante
+    principal y probarla primero suele podar mucho más), (1)
     movimientos que ganan un mini-tablero de inmediato, (2) movimientos
     que bloquean una victoria del oponente en ese mini-tablero, (3) el
     resto; dentro de cada grupo, prioriza campos de mayor IMPORTANCIA_CAMPO.
@@ -126,6 +144,7 @@ def ordenar_movimientos(tablero: "tb.Tablero", movimientos: list,
     oponente = JUGADOR_O if jugador == JUGADOR_X else JUGADOR_X
 
     def prioridad(movimiento):
+        """Asigna un grupo táctico y una prioridad posicional a la jugada."""
         if movimiento == movimiento_preferido:
             return (-1, 0)
 
@@ -144,41 +163,48 @@ def ordenar_movimientos(tablero: "tb.Tablero", movimientos: list,
 
 # ===== FUNCIONES PRINCIPALES =====
 
-def minimax(tablero: "tb.Tablero", profundidad: int, alfa: float, beta: float,
-            es_maximizando: bool, tablero_destino: Optional[Tuple[int, int]],
-            cache: "TranspositionTable", nivel: int = 0) -> int:
-    """
-    Evaluación recursiva usando Minimax con Alpha-Beta Pruning.
 
-    Args:
+def minimax(
+    tablero: "tb.Tablero",
+    profundidad: int,
+    alfa: float,
+    beta: float,
+    es_maximizando: bool,
+    tablero_destino: Optional[Tuple[int, int]],
+    tabla_transposiciones: "TablaTransposiciones",
+    nivel: int = 0,
+) -> int:
+    """
+    Evalúa recursivamente una posición con Minimax y poda alfa-beta.
+
+    Parámetros:
         tablero: Estado actual
         profundidad: Cuántos movimientos adelante buscar (0 = usar heurística)
         alfa: Mejor valor encontrado para el maximizador
         beta: Mejor valor encontrado para el minimizador
         es_maximizando: True si es turno de X (max), False si es turno de O (min)
         tablero_destino: Restricción de dónde jugar
-        cache: Transposition Table para cachear posiciones repetidas
+        tabla_transposiciones: Memoria de posiciones evaluadas durante esta
+            profundidad de búsqueda.
         nivel: Distancia (en jugadas) desde la raíz de esta búsqueda. Se
                resta/suma a los valores terminales para que la IA prefiera
                ganar rápido y retrasar una derrota inevitable.
 
-    Returns:
+    Retorna:
         Puntuación heurística (o exacta, si es terminal) de la posición
 
-    Nota sobre la cache y `nivel`: como el valor terminal ahora depende de
-    `nivel` (no solo de `profundidad`), una entrada cacheada en una pasada
-    de iterative deepening con profundidad_inicial=N ya NO es válida para
-    una pasada con profundidad_inicial=M distinto, aunque `profundidad`
-    (restante) coincida — el mismo `profundidad` restante corresponde a un
-    `nivel` distinto en cada pasada. Por eso mejor_movimiento() crea una
-    `cache` nueva en cada profundidad del iterative deepening en vez de
-    reutilizar una sola durante todo el ciclo.
+    Como el valor terminal depende de ``nivel``, una entrada guardada en una
+    pasada de profundización no es válida para otra profundidad inicial. Por
+    eso ``mejor_movimiento()`` crea una tabla nueva en cada pasada.
     """
     global _contador_nodos
     _contador_nodos += 1
 
-    if _tiempo_limite_absoluto is not None and time.monotonic() >= _tiempo_limite_absoluto:
-        raise TiempoAgotado()
+    if (
+        _tiempo_limite_absoluto is not None
+        and time.monotonic() >= _tiempo_limite_absoluto
+    ):
+        raise TiempoAgotadoError()
 
     ganador = tablero.detectar_ganador_meta()
     if ganador == JUGADOR_X:
@@ -190,44 +216,60 @@ def minimax(tablero: "tb.Tablero", profundidad: int, alfa: float, beta: float,
 
     alfa_original = alfa
     beta_original = beta
-    clave_cache = (tablero.get_estado_hash(), profundidad, tablero_destino, es_maximizando)
-    entrada_cache = cache.obtener(clave_cache)
-    if entrada_cache is not None:
-        valor_cacheado, tipo_cache = entrada_cache
-        if tipo_cache == TIPO_EXACTO:
-            return valor_cacheado
-        if tipo_cache == TIPO_COTA_INFERIOR:
-            alfa = max(alfa, valor_cacheado)
-        elif tipo_cache == TIPO_COTA_SUPERIOR:
-            beta = min(beta, valor_cacheado)
+    clave_tabla = (
+        tablero.obtener_hash_estado(),
+        profundidad,
+        tablero_destino,
+        es_maximizando,
+    )
+    entrada_guardada = tabla_transposiciones.obtener(clave_tabla)
+    if entrada_guardada is not None:
+        valor_guardado, tipo_guardado = entrada_guardada
+        if tipo_guardado == TIPO_EXACTO:
+            return valor_guardado
+        if tipo_guardado == TIPO_COTA_INFERIOR:
+            alfa = max(alfa, valor_guardado)
+        elif tipo_guardado == TIPO_COTA_SUPERIOR:
+            beta = min(beta, valor_guardado)
         if alfa >= beta:
-            return valor_cacheado
+            return valor_guardado
 
     if profundidad == 0:
         valor = ev.evaluar_posicion(tablero, es_maximizando, tablero_destino)
-        cache.guardar(clave_cache, valor, TIPO_EXACTO)
+        tabla_transposiciones.guardar(clave_tabla, valor, TIPO_EXACTO)
         return valor
 
     jugador_actual = JUGADOR_X if es_maximizando else JUGADOR_O
     movimientos = mov.movimientos_validos(tablero, tablero_destino)
-    movimientos = ordenar_movimientos(tablero, movimientos, tablero_destino, jugador_actual)
+    movimientos = ordenar_movimientos(
+        tablero, movimientos, tablero_destino, jugador_actual
+    )
 
     if not movimientos:
         valor = ev.evaluar_posicion(tablero, es_maximizando, tablero_destino)
-        cache.guardar(clave_cache, valor, TIPO_EXACTO)
+        tabla_transposiciones.guardar(clave_tabla, valor, TIPO_EXACTO)
         return valor
 
     if es_maximizando:
-        valor = float('-inf')
+        valor = float("-inf")
         indice = 0
         while indice < len(movimientos) and alfa < beta:
             movimiento = movimientos[indice]
             tablero.aplicar_movimiento(*movimiento, jugador_actual)
             siguiente_destino = (movimiento[2], movimiento[3])
             try:
-                valor_hijo = minimax(tablero, profundidad - 1, alfa, beta, False, siguiente_destino, cache, nivel + 1)
+                valor_hijo = minimax(
+                    tablero,
+                    profundidad - 1,
+                    alfa,
+                    beta,
+                    False,
+                    siguiente_destino,
+                    tabla_transposiciones,
+                    nivel + 1,
+                )
             finally:
-                # Si minimax() lanza TiempoAgotado, este deshacer DEBE
+                # Si minimax() lanza TiempoAgotadoError, este deshacer DEBE
                 # ejecutarse igual: es lo único que evita dejar el
                 # movimiento pegado permanentemente al tablero real
                 # mientras la excepción se propaga por la recursión.
@@ -236,14 +278,23 @@ def minimax(tablero: "tb.Tablero", profundidad: int, alfa: float, beta: float,
             alfa = max(alfa, valor)
             indice += 1
     else:
-        valor = float('inf')
+        valor = float("inf")
         indice = 0
         while indice < len(movimientos) and alfa < beta:
             movimiento = movimientos[indice]
             tablero.aplicar_movimiento(*movimiento, jugador_actual)
             siguiente_destino = (movimiento[2], movimiento[3])
             try:
-                valor_hijo = minimax(tablero, profundidad - 1, alfa, beta, True, siguiente_destino, cache, nivel + 1)
+                valor_hijo = minimax(
+                    tablero,
+                    profundidad - 1,
+                    alfa,
+                    beta,
+                    True,
+                    siguiente_destino,
+                    tabla_transposiciones,
+                    nivel + 1,
+                )
             finally:
                 tablero.deshacer_movimiento()
             valor = min(valor, valor_hijo)
@@ -256,26 +307,29 @@ def minimax(tablero: "tb.Tablero", profundidad: int, alfa: float, beta: float,
         tipo_valor = TIPO_COTA_INFERIOR
     else:
         tipo_valor = TIPO_EXACTO
-    cache.guardar(clave_cache, valor, tipo_valor)
+    tabla_transposiciones.guardar(clave_tabla, valor, tipo_valor)
     return valor
 
 
-def obtener_mejor_movimiento_hoja(tablero: "tb.Tablero", profundidad: int,
-                                   alfa: float, beta: float, es_maximizando: bool,
-                                   tablero_destino: Optional[Tuple[int, int]],
-                                   cache: "TranspositionTable",
-                                   movimiento_preferido: Optional[Tuple[int, int, int, int]] = None
-                                   ) -> Optional[Tuple[int, int, int, int, int]]:
+def obtener_mejor_movimiento_hoja(
+    tablero: "tb.Tablero",
+    profundidad: int,
+    alfa: float,
+    beta: float,
+    es_maximizando: bool,
+    tablero_destino: Optional[Tuple[int, int]],
+    tabla_transposiciones: "TablaTransposiciones",
+    movimiento_preferido: Optional[Tuple[int, int, int, int]] = None,
+) -> Optional[Tuple[int, int, int, int, int]]:
     """
     Versión de minimax que además retorna qué movimiento en la raíz produjo
     la mejor puntuación (minimax() solo retorna la puntuación).
 
-    Args:
+    Parámetros:
         movimiento_preferido: Mejor jugada encontrada en la profundidad
-            anterior del iterative deepening, si la hay — se prueba primero
-            (PV move ordering) para podar más rápido.
+            anterior, si la hay; se prueba primero para podar más rápido.
 
-    Returns:
+    Retorna:
         (fila_meta, col_meta, fila_mini, col_mini, puntuacion) del mejor
         movimiento raíz, o None si no hay movimientos legales.
 
@@ -290,18 +344,29 @@ def obtener_mejor_movimiento_hoja(tablero: "tb.Tablero", profundidad: int,
     movimientos = mov.movimientos_validos(tablero, tablero_destino)
     if not movimientos:
         return None
-    movimientos = ordenar_movimientos(tablero, movimientos, tablero_destino, jugador_actual, movimiento_preferido)
+    movimientos = ordenar_movimientos(
+        tablero, movimientos, tablero_destino, jugador_actual, movimiento_preferido
+    )
 
     mejor_movimiento = movimientos[0]
     if es_maximizando:
-        mejor_valor = float('-inf')
+        mejor_valor = float("-inf")
         indice = 0
         while indice < len(movimientos) and alfa < beta:
             movimiento = movimientos[indice]
             tablero.aplicar_movimiento(*movimiento, jugador_actual)
             siguiente_destino = (movimiento[2], movimiento[3])
             try:
-                valor = minimax(tablero, profundidad - 1, alfa, beta, False, siguiente_destino, cache, nivel=1)
+                valor = minimax(
+                    tablero,
+                    profundidad - 1,
+                    alfa,
+                    beta,
+                    False,
+                    siguiente_destino,
+                    tabla_transposiciones,
+                    nivel=1,
+                )
             finally:
                 tablero.deshacer_movimiento()
             if valor > mejor_valor:
@@ -310,14 +375,23 @@ def obtener_mejor_movimiento_hoja(tablero: "tb.Tablero", profundidad: int,
             alfa = max(alfa, mejor_valor)
             indice += 1
     else:
-        mejor_valor = float('inf')
+        mejor_valor = float("inf")
         indice = 0
         while indice < len(movimientos) and alfa < beta:
             movimiento = movimientos[indice]
             tablero.aplicar_movimiento(*movimiento, jugador_actual)
             siguiente_destino = (movimiento[2], movimiento[3])
             try:
-                valor = minimax(tablero, profundidad - 1, alfa, beta, True, siguiente_destino, cache, nivel=1)
+                valor = minimax(
+                    tablero,
+                    profundidad - 1,
+                    alfa,
+                    beta,
+                    True,
+                    siguiente_destino,
+                    tabla_transposiciones,
+                    nivel=1,
+                )
             finally:
                 tablero.deshacer_movimiento()
             if valor < mejor_valor:
@@ -356,7 +430,7 @@ def _calcular_presupuesto(tablero: "tb.Tablero", tiempo_limite: float) -> float:
     más cuando quedan pocas casillas (las decisiones son más críticas).
 
     El resultado nunca excede tiempo_limite — solo puede acortarlo, así que
-    llamadas con un tiempo_limite chico (como en los tests) no se alargan.
+    las llamadas con un límite pequeño (como en las pruebas) no se alargan.
     """
     restantes = _contar_casillas_restantes(tablero)
     if restantes >= CASILLAS_RESTANTES_APERTURA:
@@ -368,20 +442,24 @@ def _calcular_presupuesto(tablero: "tb.Tablero", tiempo_limite: float) -> float:
     return max(0.0, min(presupuesto, tiempo_limite))
 
 
-def mejor_movimiento(tablero: "tb.Tablero", tablero_destino: Optional[Tuple[int, int]],
-                     tiempo_limite: float = TIEMPO_LIMITE) -> Optional[Tuple[int, int, int, int]]:
+def mejor_movimiento(
+    tablero: "tb.Tablero",
+    tablero_destino: Optional[Tuple[int, int]],
+    tiempo_limite: float = TIEMPO_LIMITE,
+) -> Optional[Tuple[int, int, int, int]]:
     """
-    Encuentra el mejor movimiento usando Iterative Deepening + Minimax con
-    Alpha-Beta Pruning.
+    Encuentra el mejor movimiento con profundización iterativa, Minimax y
+    poda alfa-beta.
 
-    Args:
+    Parámetros:
         tablero: Estado actual
         tablero_destino: Dónde debe jugar (None si puede jugar en cualquier lado)
-        tiempo_limite: Segundos máximos para decidir (default TIEMPO_LIMITE);
+        tiempo_limite: Segundos máximos para decidir; su valor predeterminado
+            es ``TIEMPO_LIMITE``;
             el presupuesto real usado puede ser menor (ver _calcular_presupuesto)
             pero nunca mayor.
 
-    Returns:
+    Retorna:
         Tupla (fila_meta, col_meta, fila_mini, col_mini) del mejor movimiento
         encontrado, o None si no hay movimientos legales.
 
@@ -442,12 +520,19 @@ def mejor_movimiento(tablero: "tb.Tablero", tablero_destino: Optional[Tuple[int,
             seguir_buscando = tiempo_transcurrido <= 0.9 * presupuesto
 
             resultado = None
-            # Cache nueva por profundidad: ver nota sobre `nivel` en minimax().
+            # Se usa una tabla nueva en cada profundidad por la relación entre
+            # el valor terminal y ``nivel`` explicada en minimax().
             if seguir_buscando:
-                cache = TranspositionTable()
+                tabla_transposiciones = TablaTransposiciones()
                 resultado = obtener_mejor_movimiento_hoja(
-                    tablero, profundidad, float('-inf'), float('inf'),
-                    es_maximizando, tablero_destino, cache, movimiento_preferido
+                    tablero,
+                    profundidad,
+                    float("-inf"),
+                    float("inf"),
+                    es_maximizando,
+                    tablero_destino,
+                    tabla_transposiciones,
+                    movimiento_preferido,
                 )
 
             if resultado is None:
@@ -460,7 +545,7 @@ def mejor_movimiento(tablero: "tb.Tablero", tablero_destino: Optional[Tuple[int,
                 seguir_buscando = abs(mejor_valor) < VALOR_GANADOR // 2
 
             profundidad += 1
-    except TiempoAgotado:
+    except TiempoAgotadoError:
         busqueda_interrumpida = True
     finally:
         _tiempo_limite_absoluto = None

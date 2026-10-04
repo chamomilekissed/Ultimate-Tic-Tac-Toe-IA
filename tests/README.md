@@ -58,10 +58,19 @@ Las pruebas comprueban, entre otras cosas, que:
 - el límite de tiempo no deje movimientos simulados en el tablero;
 - las amenazas de campos cerrados no alteren la evaluación;
 - la primera pregunta distinga entre sistema y jugador externo;
+- la interfaz muestre el campo obligatorio y las opciones disponibles;
 - los pesos respeten la estructura de líneas abiertas del meta-tablero;
+- las siete ponderaciones sean exactamente `18, 6, 5, 6, 1, 8, 4` en la
+  versión modular y en el archivo de Spyder;
 - la tabla de transposiciones respete valores exactos y cotas;
 - la versión modular y la de Spyder produzcan el mismo estado;
-- ningún archivo Python use `break`, `continue` o `pass`.
+- ningún archivo Python use `break`, `continue` o `pass`;
+- las funciones y sus parámetros respeten `snake_case`;
+- las clases y funciones del código actual tengan documentación;
+- no existan importaciones globales con `*`.
+
+En la revisión final se ejecutaron las dos suites juntas: **220 casos
+aprobados**.
 
 GitHub Actions ejecuta automáticamente la compilación y los 200 casos finales
 cuando se abre o actualiza un pull request.

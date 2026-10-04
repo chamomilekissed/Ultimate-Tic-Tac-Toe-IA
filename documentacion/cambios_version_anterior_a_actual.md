@@ -28,7 +28,7 @@ manejo de cotas de Minimax y agrega una suite de 200 pruebas.
 | Inicio de partida | Pregunta quién comienza | Pregunta si comienza el sistema o el jugador externo y asigna X a quien inicia |
 | Heurística | Una función extensa con pesos para sistema y rival | Siete componentes separados, líneas abiertas y exclusión de campos cerrados |
 | Memoria de búsqueda | Guarda resultados completos | Distingue valor exacto, cota inferior y cota superior |
-| Tiempo | La recursión devuelve si terminó o agotó tiempo | Excepción interna `TiempoAgotado` y restauración con `try/finally` |
+| Tiempo | La recursión devuelve si terminó o agotó tiempo | Excepción interna `TiempoAgotadoError` y restauración con `try/finally` |
 | Pruebas | Pruebas básicas dentro del archivo | 200 pruebas finales más 20 históricas con `pytest` |
 | Documentación | README centrado en el archivo único | README principal e índice dentro de cada carpeta |
 
@@ -131,7 +131,7 @@ La puntuación actual usa una convención fija:
 - negativo favorece a O;
 - cero es neutral o empate.
 
-Separar los componentes permite usar `debug=True` para observar cuánto aporta
+Separar los componentes permite usar `mostrar_desglose=True` para observar cuánto aporta
 cada uno sin cambiar el resultado final.
 
 También se corrigieron cuatro problemas estratégicos:
@@ -188,7 +188,7 @@ de toda la rama.
 ## 7. Manejo del tiempo
 
 La búsqueda usa `time.monotonic()`, un reloj adecuado para medir intervalos. Si
-se termina el presupuesto, se lanza internamente `TiempoAgotado`.
+se termina el presupuesto, se lanza internamente `TiempoAgotadoError`.
 
 Cada movimiento simulado se encuentra dentro de `try/finally`, por lo que se
 deshace incluso cuando el tiempo termina a mitad de la recursión. La IA devuelve

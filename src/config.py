@@ -5,23 +5,28 @@ Configuración global del proyecto Gato de Gatos
 # ===== CONSTANTES DEL JUEGO =====
 
 # Símbolos de jugadores
-JUGADOR_X = 'X'
-JUGADOR_O = 'O'
-VACIO = None
+JUGADOR_X = "X"
+JUGADOR_O = "O"
 
-# Tamaño del tablero
-TAMAÑO_MINI = 3  # Cada mini-tablero es 3x3
-TAMAÑO_META = 3  # Meta-tablero es 3x3 (de mini-tableros)
-TOTAL_CASILLAS = TAMAÑO_MINI * TAMAÑO_MINI * TAMAÑO_META * TAMAÑO_META  # 81
+# Dimensiones del tablero. Los nombres usan MAYÚSCULAS_CON_GUIONES_BAJOS
+# porque son constantes, de acuerdo con la convención de Python.
+DIMENSION_MINI = 3  # Cada mini-tablero tiene 3 filas y 3 columnas.
+DIMENSION_META = 3  # El meta-tablero contiene 3 por 3 mini-tableros.
 
 # Índices de meta-tablero
 # A | B | C
 # D | E | F
 # G | H | I
 CAMPOS = {
-    'A': (0, 0), 'B': (0, 1), 'C': (0, 2),
-    'D': (1, 0), 'E': (1, 1), 'F': (1, 2),
-    'G': (2, 0), 'H': (2, 1), 'I': (2, 2)
+    "A": (0, 0),
+    "B": (0, 1),
+    "C": (0, 2),
+    "D": (1, 0),
+    "E": (1, 1),
+    "F": (1, 2),
+    "G": (2, 0),
+    "H": (2, 1),
+    "I": (2, 2),
 }
 
 INDICES_INVERSOS = {v: k for k, v in CAMPOS.items()}
@@ -31,17 +36,20 @@ INDICES_INVERSOS = {v: k for k, v in CAMPOS.items()}
 # d | e | f
 # g | h | i
 POSICIONES_MINI = {
-    'a': (0, 0), 'b': (0, 1), 'c': (0, 2),
-    'd': (1, 0), 'e': (1, 1), 'f': (1, 2),
-    'g': (2, 0), 'h': (2, 1), 'i': (2, 2)
+    "a": (0, 0),
+    "b": (0, 1),
+    "c": (0, 2),
+    "d": (1, 0),
+    "e": (1, 1),
+    "f": (1, 2),
+    "g": (2, 0),
+    "h": (2, 1),
+    "i": (2, 2),
 }
 
 INDICES_MINI_INVERSOS = {v: k for k, v in POSICIONES_MINI.items()}
 
 # ===== CONSTANTES DE MINIMAX =====
-
-# Profundidad inicial de búsqueda
-PROFUNDIDAD_INICIAL = 5
 
 # Tiempo límite para decisión (segundos)
 TIEMPO_LIMITE = 30
@@ -57,13 +65,20 @@ VALOR_EMPATE = 0
 # se evita sumar tres veces la misma amenaza local, que era una deficiencia de
 # la versión anterior. Esta combinación fue seleccionada mediante partidas
 # cruzadas contra la evaluación anterior, alternando X y O.
-PESO_PROGRESO_META_TABLERO = 18   # Líneas abiertas de uno o dos campos en el meta-tablero
-PESO_AMENAZAS_BIFURCACIONES = 6   # Bono exclusivo por cada amenaza adicional de una bifurcación
-PESO_DEFENSA_CRITICA = 5          # Amenazas inmediatas en campos que todavía se pueden jugar
-PESO_POSICIONES_CLAVE = 6         # Campos ya ganados: centro, esquinas y bordes
-PESO_CONTROL_LOCAL = 1            # Líneas locales en desarrollo, sin volver a contar amenazas inmediatas
-PESO_AMENAZA_DESTINO = 8          # Situación táctica del campo obligatorio del siguiente turno
-PESO_AMENAZA_DESTINO_FUTURA = 4   # Consecuencia de cada posible campo al que se enviará al rival
+# Líneas abiertas de uno o dos campos en el meta-tablero.
+PESO_PROGRESO_META_TABLERO = 18
+# Bono exclusivo por cada amenaza adicional de una bifurcación.
+PESO_AMENAZAS_BIFURCACIONES = 6
+# Amenazas inmediatas en campos que todavía se pueden jugar.
+PESO_DEFENSA_CRITICA = 5
+# Campos ya ganados: centro, esquinas y bordes.
+PESO_POSICIONES_CLAVE = 6
+# Líneas locales en desarrollo, sin volver a contar amenazas inmediatas.
+PESO_CONTROL_LOCAL = 1
+# Situación táctica del campo obligatorio del siguiente turno.
+PESO_AMENAZA_DESTINO = 8
+# Consecuencia de cada posible campo al que se enviará al rival.
+PESO_AMENAZA_DESTINO_FUTURA = 4
 
 # Valores no ponderados usados para distinguir progreso temprano de una
 # amenaza casi completa. Dos marcas/campos en una línea valen bastante más
@@ -87,7 +102,7 @@ TIEMPO_APERTURA = 15.0
 TIEMPO_MEDIO_PARTIDA = 20.0
 TIEMPO_FINAL_PARTIDA = 27.0
 
-# Tamaño máximo de la Transposition Table (entradas) antes de dejar de guardar más
+# Cantidad máxima de posiciones guardadas en la tabla de transposiciones.
 LIMITE_ESTADOS_MEMORIA = 120_000
 
 # ===== MAPA DE POSICIONES A LÍNEAS DE VICTORIA =====
@@ -133,14 +148,3 @@ IMPORTANCIA_CAMPO = {
     (2, 1): 2,  # Borde inferior
     (2, 2): 3,  # Esquina inferior-derecha
 }
-
-# ===== LOGGING Y DEBUG =====
-
-# Nivel de verbosidad: 0=silencio, 1=básico, 2=detallado, 3=muy detallado
-VERBOSIDAD = 1
-
-# Mostrar tabla de transposiciones usado
-DEBUG_CACHE = False
-
-# Mostrar profundidad alcanzada en iterative deepening
-DEBUG_PROFUNDIDAD = False

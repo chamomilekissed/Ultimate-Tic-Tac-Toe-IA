@@ -4,7 +4,7 @@ GATO DE GATOS (ULTIMATE TIC-TAC-TOE) CON MINIMAX
 
 Archivo único de entrega: contiene todo el motor del juego (representación
 del tablero, generación de movimientos, heurística de evaluación, búsqueda
-Minimax con poda Alfa-Beta, interfaz de terminal y el loop principal).
+Minimax con poda alfa-beta, interfaz de terminal y el ciclo principal).
 
 Cómo jugar
 ----------
@@ -25,10 +25,10 @@ Los movimientos se escriben con dos caracteres "Campo+Posición":
 La casilla elegida determina el mini-tablero donde debe jugar el
 siguiente turno. Si ese mini-tablero ya está decidido (ganado o
 empatado), el siguiente jugador puede elegir cualquier mini-tablero que
-siga abierto. """
+siga abierto."""
 
 import time
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 
 # =============================================================================
@@ -36,22 +36,27 @@ from typing import Callable, Dict, List, Optional, Tuple
 # =============================================================================
 
 # Símbolos de jugadores
-JUGADOR_X = 'X'
-JUGADOR_O = 'O'
-VACIO = None
+JUGADOR_X = "X"
+JUGADOR_O = "O"
 
-# Tamaño del tablero
-TAMAÑO_MINI = 3   # Cada mini-tablero es 3x3
-TAMAÑO_META = 3   # Meta-tablero es 3x3 (de mini-tableros)
+# Dimensiones del tablero. Las constantes usan MAYÚSCULAS_CON_GUIONES_BAJOS.
+DIMENSION_MINI = 3  # Cada mini-tablero tiene 3 filas y 3 columnas.
+DIMENSION_META = 3  # El meta-tablero contiene 3 por 3 mini-tableros.
 
 # Índices de meta-tablero
 # A | B | C
 # D | E | F
 # G | H | I
 CAMPOS = {
-    'A': (0, 0), 'B': (0, 1), 'C': (0, 2),
-    'D': (1, 0), 'E': (1, 1), 'F': (1, 2),
-    'G': (2, 0), 'H': (2, 1), 'I': (2, 2)
+    "A": (0, 0),
+    "B": (0, 1),
+    "C": (0, 2),
+    "D": (1, 0),
+    "E": (1, 1),
+    "F": (1, 2),
+    "G": (2, 0),
+    "H": (2, 1),
+    "I": (2, 2),
 }
 INDICES_INVERSOS = {v: k for k, v in CAMPOS.items()}
 
@@ -60,9 +65,15 @@ INDICES_INVERSOS = {v: k for k, v in CAMPOS.items()}
 # d | e | f
 # g | h | i
 POSICIONES_MINI = {
-    'a': (0, 0), 'b': (0, 1), 'c': (0, 2),
-    'd': (1, 0), 'e': (1, 1), 'f': (1, 2),
-    'g': (2, 0), 'h': (2, 1), 'i': (2, 2)
+    "a": (0, 0),
+    "b": (0, 1),
+    "c": (0, 2),
+    "d": (1, 0),
+    "e": (1, 1),
+    "f": (1, 2),
+    "g": (2, 0),
+    "h": (2, 1),
+    "i": (2, 2),
 }
 INDICES_MINI_INVERSOS = {v: k for k, v in POSICIONES_MINI.items()}
 
@@ -77,13 +88,20 @@ VALOR_EMPATE = 0
 
 # ===== Pesos de la función heurística =====
 
-PESO_PROGRESO_META_TABLERO = 18   # Líneas abiertas de uno o dos campos en el meta-tablero
-PESO_AMENAZAS_BIFURCACIONES = 6   # Bono por cada amenaza adicional de una bifurcación
-PESO_DEFENSA_CRITICA = 5          # Amenazas inmediatas en campos todavía jugables
-PESO_POSICIONES_CLAVE = 6         # Centro, esquinas y bordes ya ganados
-PESO_CONTROL_LOCAL = 1            # Líneas locales en desarrollo, sin duplicar amenazas
-PESO_AMENAZA_DESTINO = 8          # Situación táctica del campo obligatorio
-PESO_AMENAZA_DESTINO_FUTURA = 4   # Consecuencia del campo al que se enviará al rival
+# Líneas abiertas de uno o dos campos en el meta-tablero.
+PESO_PROGRESO_META_TABLERO = 18
+# Bono por cada amenaza adicional de una bifurcación.
+PESO_AMENAZAS_BIFURCACIONES = 6
+# Amenazas inmediatas en campos todavía jugables.
+PESO_DEFENSA_CRITICA = 5
+# Centro, esquinas y bordes ya ganados.
+PESO_POSICIONES_CLAVE = 6
+# Líneas locales en desarrollo, sin duplicar amenazas.
+PESO_CONTROL_LOCAL = 1
+# Situación táctica del campo obligatorio.
+PESO_AMENAZA_DESTINO = 8
+# Consecuencia del campo al que se enviará al rival.
+PESO_AMENAZA_DESTINO_FUTURA = 4
 
 VALOR_LINEA_META_UN_CAMPO = 1
 VALOR_LINEA_META_DOS_CAMPOS = 8
@@ -99,7 +117,7 @@ TIEMPO_APERTURA = 15.0
 TIEMPO_MEDIO_PARTIDA = 20.0
 TIEMPO_FINAL_PARTIDA = 27.0
 
-# Tamaño máximo de la Transposition Table (entradas) antes de dejar de guardar más
+# Cantidad máxima de posiciones guardadas en la tabla de transposiciones.
 LIMITE_ESTADOS_MEMORIA = 120_000
 
 # ===== Líneas de victoria (filas, columnas, diagonales de un 3x3) =====
@@ -144,9 +162,10 @@ IMPORTANCIA_CAMPO = {
 # TABLERO
 # =============================================================================
 
+
 class Tablero:
     """
-    Muestra el estado del juego completo
+    Representa el estado completo del juego.
 
     Estructura interna:
     - meta_tablero: arreglo 3x3 con ganadores de mini-tableros ('X', 'O', None, 'EMPATE')
@@ -163,37 +182,37 @@ class Tablero:
         - historial: pila vacía
         """
         self.meta_tablero: List[List[Optional[str]]] = [
-            [None for _ in range(TAMAÑO_META)] for _ in range(TAMAÑO_META)
+            [None for _ in range(DIMENSION_META)] for _ in range(DIMENSION_META)
         ]
         self.mini_tableros: List[List[List[Optional[str]]]] = [
-            [[None for _ in range(TAMAÑO_MINI)] for _ in range(TAMAÑO_MINI)]
-            for _ in range(TAMAÑO_META * TAMAÑO_META)
+            [[None for _ in range(DIMENSION_MINI)] for _ in range(DIMENSION_MINI)]
+            for _ in range(DIMENSION_META * DIMENSION_META)
         ]
         self.historial: List[Tuple[int, int, int, int, Optional[str]]] = []
 
     def _indice_mini(self, fila_meta: int, col_meta: int) -> int:
-        """Convierte coordenadas (fila_meta, col_meta) al índice del array mini_tableros."""
-        return fila_meta * TAMAÑO_META + col_meta
+        """Convierte coordenadas del meta-tablero al índice de ``mini_tableros``."""
+        return fila_meta * DIMENSION_META + col_meta
 
     # ----- Modificación -----
 
-    def aplicar_movimiento(self, fila_meta: int, col_meta: int,
-                          fila_mini: int, col_mini: int, jugador: str) -> bool:
+    def aplicar_movimiento(
+        self, fila_meta: int, col_meta: int, fila_mini: int, col_mini: int, jugador: str
+    ) -> bool:
         """
         Aplica un movimiento al tablero.
 
-        Args:
-            fila_meta, col_meta: Posición del mini-tablero (0-2)
-            fila_mini, col_mini: Posición dentro del mini-tablero (0-2)
-            jugador: 'X' o 'O'
+        Parámetros:
+            fila_meta, col_meta: Posición del mini-tablero; enteros de 0 a 2.
+            fila_mini, col_mini: Posición interna; enteros de 0 a 2.
+            jugador: Símbolo ``'X'`` o ``'O'``.
 
-        Returns:
-            True si el movimiento se aplicó exitosamente
-            False si las coordenadas o el jugador son inválidos, si el
-            mini-tablero ya terminó o si la casilla está ocupada.
+        Retorna:
+            ``True`` si se aplicó el movimiento; ``False`` si algún dato es
+            inválido, el mini-tablero terminó o la casilla está ocupada.
         """
         coordenadas = (fila_meta, col_meta, fila_mini, col_mini)
-        coordenadas_validas = all(0 <= valor < TAMAÑO_MINI for valor in coordenadas)
+        coordenadas_validas = all(0 <= valor < DIMENSION_MINI for valor in coordenadas)
         jugador_valido = jugador in (JUGADOR_X, JUGADOR_O)
 
         if not coordenadas_validas or not jugador_valido:
@@ -201,14 +220,16 @@ class Tablero:
         if not self.es_mini_tablero_disponible(fila_meta, col_meta):
             return False
 
-        idx = self._indice_mini(fila_meta, col_meta)
-        if self.mini_tableros[idx][fila_mini][col_mini] is not None:
+        indice_mini = self._indice_mini(fila_meta, col_meta)
+        if self.mini_tableros[indice_mini][fila_mini][col_mini] is not None:
             return False
 
         valor_meta_previo = self.meta_tablero[fila_meta][col_meta]
-        self.historial.append((fila_meta, col_meta, fila_mini, col_mini, valor_meta_previo))
+        self.historial.append(
+            (fila_meta, col_meta, fila_mini, col_mini, valor_meta_previo)
+        )
 
-        self.mini_tableros[idx][fila_mini][col_mini] = jugador
+        self.mini_tableros[indice_mini][fila_mini][col_mini] = jugador
 
         if valor_meta_previo is None:
             resultado_mini = self.obtener_ganador_mini(fila_meta, col_meta)
@@ -221,34 +242,41 @@ class Tablero:
         """
         Deshace el último movimiento (restaura del historial).
 
-        Returns:
-            True si se deshizo algo, False si historial está vacío
+        Retorna:
+            ``True`` si se deshizo una jugada; ``False`` si no había ninguna.
         """
         if not self.historial:
             return False
 
-        fila_meta, col_meta, fila_mini, col_mini, valor_meta_previo = self.historial.pop()
-        idx = self._indice_mini(fila_meta, col_meta)
-        self.mini_tableros[idx][fila_mini][col_mini] = None
+        fila_meta, col_meta, fila_mini, col_mini, valor_meta_previo = (
+            self.historial.pop()
+        )
+        indice_mini = self._indice_mini(fila_meta, col_meta)
+        self.mini_tableros[indice_mini][fila_mini][col_mini] = None
         self.meta_tablero[fila_meta][col_meta] = valor_meta_previo
         return True
 
     # ----- Lectura (críticos para velocidad) -----
 
-    def obtener_mini_tablero(self, fila_meta: int, col_meta: int) -> List[List[Optional[str]]]:
+    def obtener_mini_tablero(
+        self, fila_meta: int, col_meta: int
+    ) -> List[List[Optional[str]]]:
         """Retorna el mini-tablero específico (sin copiar, para velocidad)."""
         return self.mini_tableros[self._indice_mini(fila_meta, col_meta)]
 
-    def obtener_casilla(self, fila_meta: int, col_meta: int,
-                       fila_mini: int, col_mini: int) -> Optional[str]:
+    def obtener_casilla(
+        self, fila_meta: int, col_meta: int, fila_mini: int, col_mini: int
+    ) -> Optional[str]:
         """Retorna qué hay en una casilla específica ('X', 'O', o None)."""
-        return self.mini_tableros[self._indice_mini(fila_meta, col_meta)][fila_mini][col_mini]
+        return self.mini_tableros[self._indice_mini(fila_meta, col_meta)][fila_mini][
+            col_mini
+        ]
 
     def obtener_ganador_mini(self, fila_meta: int, col_meta: int) -> Optional[str]:
         """
         Retorna quién ganó el mini-tablero especificado.
 
-        Returns:
+        Retorna:
             'X' si X ganó, 'O' si O ganó, 'EMPATE' si está lleno sin
             ganador, None si el juego sigue.
         """
@@ -257,12 +285,14 @@ class Tablero:
         if ganador is not None:
             return ganador
         if self.es_mini_tablero_lleno(fila_meta, col_meta):
-            return 'EMPATE'
+            return "EMPATE"
         return None
 
     # ----- Detección (críticos para minimax) -----
 
-    def detectar_ganador_mini(self, tablero_3x3: List[List[Optional[str]]]) -> Optional[str]:
+    def detectar_ganador_mini(
+        self, tablero_3x3: List[List[Optional[str]]]
+    ) -> Optional[str]:
         """Detecta si alguien ganó en un mini-tablero (3-en-línea)."""
         for linea in LINEAS_MINI_TABLERO:
             (f1, c1), (f2, c2), (f3, c3) = linea
@@ -276,7 +306,10 @@ class Tablero:
         for linea in LINEAS_META_TABLERO:
             (f1, c1), (f2, c2), (f3, c3) = linea
             v1 = self.meta_tablero[f1][c1]
-            if v1 in (JUGADOR_X, JUGADOR_O) and v1 == self.meta_tablero[f2][c2] == self.meta_tablero[f3][c3]:
+            if (
+                v1 in (JUGADOR_X, JUGADOR_O)
+                and v1 == self.meta_tablero[f2][c2] == self.meta_tablero[f3][c3]
+            ):
                 return v1
         return None
 
@@ -286,8 +319,8 @@ class Tablero:
             return False
         return all(
             self.meta_tablero[f][c] is not None
-            for f in range(TAMAÑO_META)
-            for c in range(TAMAÑO_META)
+            for f in range(DIMENSION_META)
+            for c in range(DIMENSION_META)
         )
 
     # ----- Estado -----
@@ -301,44 +334,49 @@ class Tablero:
         """
         Verifica si se puede jugar en un mini-tablero.
 
-        Returns:
+        Retorna:
             False si ya fue ganado por X o O, está lleno, o es un empate.
             True si todavía tiene casillas vacías para jugar.
         """
         return self.meta_tablero[fila_meta][col_meta] is None
 
-    # ----- Representación y debug -----
+    # ----- Representación para la terminal -----
 
     def __str__(self) -> str:
-        """Regresa la representación en string del tablero para mostrar en la terminal"""
+        """Retorna una cadena con el tablero listo para mostrar en la terminal."""
+
         def simbolo_celda(valor: Optional[str]) -> str:
-            return valor if valor else '.'
+            """Convierte una casilla vacía en un punto para mostrarla."""
+            return valor if valor else "."
 
         def simbolo_meta(valor: Optional[str]) -> str:
+            """Convierte el resultado de un campo en un símbolo visible."""
             if valor in (JUGADOR_X, JUGADOR_O):
                 return valor
-            if valor == 'EMPATE':
-                return '='
-            return '.'
+            if valor == "EMPATE":
+                return "="
+            return "."
 
         filas_tablero = []
-        for fila_meta in range(TAMAÑO_META):
-            for fila_mini in range(TAMAÑO_MINI):
+        for fila_meta in range(DIMENSION_META):
+            for fila_mini in range(DIMENSION_MINI):
                 grupos = []
-                for col_meta in range(TAMAÑO_META):
-                    idx = self._indice_mini(fila_meta, col_meta)
-                    fila_valores = self.mini_tableros[idx][fila_mini]
-                    grupos.append(' '.join(simbolo_celda(c) for c in fila_valores))
-                filas_tablero.append(' | '.join(grupos))
-            if fila_meta < TAMAÑO_META - 1:
-                filas_tablero.append('-' * 29)
+                for col_meta in range(DIMENSION_META):
+                    indice_mini = self._indice_mini(fila_meta, col_meta)
+                    fila_valores = self.mini_tableros[indice_mini][fila_mini]
+                    grupos.append(" ".join(simbolo_celda(c) for c in fila_valores))
+                filas_tablero.append(" | ".join(grupos))
+            if fila_meta < DIMENSION_META - 1:
+                filas_tablero.append("-" * 29)
 
-        resumen_meta = '\n'.join(
-            ' '.join(simbolo_meta(self.meta_tablero[f][c]) for c in range(TAMAÑO_META))
-            for f in range(TAMAÑO_META)
+        resumen_meta = "\n".join(
+            " ".join(
+                simbolo_meta(self.meta_tablero[f][c]) for c in range(DIMENSION_META)
+            )
+            for f in range(DIMENSION_META)
         )
 
-        return '\n'.join(filas_tablero) + '\n\nMETA-TABLERO:\n' + resumen_meta
+        return "\n".join(filas_tablero) + "\n\nMETA-TABLERO:\n" + resumen_meta
 
     def copiar(self) -> "Tablero":
         """
@@ -354,7 +392,7 @@ class Tablero:
         nuevo.meta_tablero = [fila[:] for fila in self.meta_tablero]
         return nuevo
 
-    def get_estado_hash(self) -> int:
+    def obtener_hash_estado(self) -> int:
         """
         Regresa un identificador hash del estado actual.
 
@@ -372,17 +410,20 @@ class Tablero:
 # MOVIMIENTOS VÁLIDOS
 # =============================================================================
 
-def movimientos_validos_mini(tablero_3x3: List[List[Optional[str]]]) -> List[Tuple[int, int]]:
+
+def movimientos_validos_mini(
+    tablero_3x3: List[List[Optional[str]]],
+) -> List[Tuple[int, int]]:
     """
     Regresa casillas vacías en un mini-tablero específico.
 
-    Returns:
+    Retorna:
         Lista de tuplas (fila, col) de casillas vacías
     """
     return [
         (fila, col)
-        for fila in range(TAMAÑO_MINI)
-        for col in range(TAMAÑO_MINI)
+        for fila in range(DIMENSION_MINI)
+        for col in range(DIMENSION_MINI)
         if tablero_3x3[fila][col] is None
     ]
 
@@ -391,27 +432,29 @@ def mini_tableros_disponibles(tablero: Tablero) -> List[Tuple[int, int]]:
     """
     Regresa lista de mini-tableros donde aún se puede jugar.
 
-    Returns:
+    Retorna:
         Lista de tuplas (fila_meta, col_meta) de mini-tableros disponibles
     """
     return [
         (fila_meta, col_meta)
-        for fila_meta in range(TAMAÑO_META)
-        for col_meta in range(TAMAÑO_META)
+        for fila_meta in range(DIMENSION_META)
+        for col_meta in range(DIMENSION_META)
         if tablero.es_mini_tablero_disponible(fila_meta, col_meta)
     ]
 
 
-def movimientos_validos(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]]) -> List[Tuple[int, int, int, int]]:
+def movimientos_validos(
+    tablero: Tablero, tablero_destino: Optional[Tuple[int, int]]
+) -> List[Tuple[int, int, int, int]]:
     """
     Regresa lista de movimientos válidos desde la posición actual.
 
-    Args:
+    Parámetros:
         tablero: Estado actual del juego
         tablero_destino: Tupla (fila_meta, col_meta) indicando dónde DEBE jugar.
                         Si None, puede jugar en cualquier lado (primer movimiento)
 
-    Returns:
+    Retorna:
         Lista de tuplas (fila_meta, col_meta, fila_mini, col_mini)
 
     Reglas:
@@ -423,7 +466,9 @@ def movimientos_validos(tablero: Tablero, tablero_destino: Optional[Tuple[int, i
     if tablero.detectar_ganador_meta() is not None or tablero.verificar_empate():
         return []
 
-    if tablero_destino is not None and tablero.es_mini_tablero_disponible(*tablero_destino):
+    if tablero_destino is not None and tablero.es_mini_tablero_disponible(
+        *tablero_destino
+    ):
         tableros_a_revisar = [tablero_destino]
     else:
         tableros_a_revisar = mini_tableros_disponibles(tablero)
@@ -443,8 +488,10 @@ def movimientos_validos(tablero: Tablero, tablero_destino: Optional[Tuple[int, i
 # evaluar_posicion() combina 7 componentes ponderados (pesos en la sección
 # de CONFIGURACIÓN).
 
-def contar_lineas_abiertas(tablero_3x3: List[List[Optional[str]]],
-                           jugador: str, cantidad_marcas: int) -> int:
+
+def contar_lineas_abiertas(
+    tablero_3x3: List[List[Optional[str]]], jugador: str, cantidad_marcas: int
+) -> int:
     """
     Cuenta líneas con una cantidad exacta de marcas y el resto vacío.
 
@@ -473,8 +520,9 @@ def contar_1_en_linea(tablero_3x3: List[List[Optional[str]]], jugador: str) -> i
     return contar_lineas_abiertas(tablero_3x3, jugador, 1)
 
 
-def contar_lineas_meta_relevantes(tablero: Tablero, fila_meta: int,
-                                  col_meta: int, jugador: str) -> int:
+def contar_lineas_meta_relevantes(
+    tablero: Tablero, fila_meta: int, col_meta: int, jugador: str
+) -> int:
     """Cuenta líneas globales donde el campo aún puede ayudar a ``jugador``."""
     rival = JUGADOR_O if jugador == JUGADOR_X else JUGADOR_X
     posicion = (fila_meta, col_meta)
@@ -482,7 +530,7 @@ def contar_lineas_meta_relevantes(tablero: Tablero, fila_meta: int,
     for linea in LINEAS_META_TABLERO:
         if posicion in linea:
             valores = [tablero.meta_tablero[fila][col] for fila, col in linea]
-            if rival not in valores and 'EMPATE' not in valores:
+            if rival not in valores and "EMPATE" not in valores:
                 relevantes += 1
     return relevantes
 
@@ -491,7 +539,7 @@ def evaluar_progreso_meta(tablero: Tablero) -> int:
     """
     Evalúa qué tan cerca está cada jugador de ganar el meta-tablero.
 
-    Returns:
+    Retorna:
         VALOR_GANADOR si X ya ganó el juego, VALOR_PERDEDOR si ganó O;
         si no, la diferencia de progreso en todas las líneas abiertas.
     """
@@ -503,11 +551,13 @@ def evaluar_progreso_meta(tablero: Tablero) -> int:
 
     progreso_x = (
         contar_1_en_linea(tablero.meta_tablero, JUGADOR_X) * VALOR_LINEA_META_UN_CAMPO
-        + contar_2_en_linea(tablero.meta_tablero, JUGADOR_X) * VALOR_LINEA_META_DOS_CAMPOS
+        + contar_2_en_linea(tablero.meta_tablero, JUGADOR_X)
+        * VALOR_LINEA_META_DOS_CAMPOS
     )
     progreso_o = (
         contar_1_en_linea(tablero.meta_tablero, JUGADOR_O) * VALOR_LINEA_META_UN_CAMPO
-        + contar_2_en_linea(tablero.meta_tablero, JUGADOR_O) * VALOR_LINEA_META_DOS_CAMPOS
+        + contar_2_en_linea(tablero.meta_tablero, JUGADOR_O)
+        * VALOR_LINEA_META_DOS_CAMPOS
     )
     return progreso_x - progreso_o
 
@@ -521,8 +571,8 @@ def evaluar_bifurcaciones(tablero: Tablero) -> int:
     evaluar_defensa(); aquí únicamente se suma el exceso sobre la primera.
     """
     puntuacion = 0
-    for fila_meta in range(TAMAÑO_META):
-        for col_meta in range(TAMAÑO_META):
+    for fila_meta in range(DIMENSION_META):
+        for col_meta in range(DIMENSION_META):
             if tablero.es_mini_tablero_disponible(fila_meta, col_meta):
                 mini = tablero.obtener_mini_tablero(fila_meta, col_meta)
                 amenazas_x = contar_2_en_linea(mini, JUGADOR_X)
@@ -541,8 +591,8 @@ def evaluar_defensa(tablero: Tablero) -> int:
     """
     amenazas_x_total = 0
     amenazas_o_total = 0
-    for fila_meta in range(TAMAÑO_META):
-        for col_meta in range(TAMAÑO_META):
+    for fila_meta in range(DIMENSION_META):
+        for col_meta in range(DIMENSION_META):
             if tablero.es_mini_tablero_disponible(fila_meta, col_meta):
                 mini = tablero.obtener_mini_tablero(fila_meta, col_meta)
                 amenazas_x_total += contar_2_en_linea(mini, JUGADOR_X)
@@ -558,8 +608,8 @@ def evaluar_control_posiciones(tablero: Tablero) -> int:
     IMPORTANCIA_CAMPO.
     """
     puntuacion = 0
-    for fila_meta in range(TAMAÑO_META):
-        for col_meta in range(TAMAÑO_META):
+    for fila_meta in range(DIMENSION_META):
+        for col_meta in range(DIMENSION_META):
             valor = tablero.meta_tablero[fila_meta][col_meta]
             if valor == JUGADOR_X:
                 puntuacion += IMPORTANCIA_CAMPO[(fila_meta, col_meta)]
@@ -575,8 +625,8 @@ def evaluar_mini_tableros(tablero: Tablero) -> int:
     meta-tablero todavía puede completar cada jugador mediante ese campo.
     """
     puntuacion = 0
-    for fila_meta in range(TAMAÑO_META):
-        for col_meta in range(TAMAÑO_META):
+    for fila_meta in range(DIMENSION_META):
+        for col_meta in range(DIMENSION_META):
             if tablero.es_mini_tablero_disponible(fila_meta, col_meta):
                 mini = tablero.obtener_mini_tablero(fila_meta, col_meta)
                 desarrollo_x = contar_1_en_linea(mini, JUGADOR_X)
@@ -592,8 +642,9 @@ def evaluar_mini_tableros(tablero: Tablero) -> int:
     return puntuacion
 
 
-def evaluar_amenaza_destino(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]],
-                            jugador_actual: str) -> int:
+def evaluar_amenaza_destino(
+    tablero: Tablero, tablero_destino: Optional[Tuple[int, int]], jugador_actual: str
+) -> int:
     """
     Evalúa el mini-tablero al que `jugador_actual` está obligado a jugar.
 
@@ -603,14 +654,16 @@ def evaluar_amenaza_destino(tablero: Tablero, tablero_destino: Optional[Tuple[in
     apunta a un mini-tablero ya decidido), se da un pequeño bono por la
     libertad de elegir.
 
-    Returns:
+    Retorna:
         Puntuación en perspectiva de jugador_actual (positiva = le
         conviene). evaluar_posicion() la convierte a perspectiva absoluta
         de X antes de sumarla.
     """
     oponente = JUGADOR_O if jugador_actual == JUGADOR_X else JUGADOR_X
 
-    if tablero_destino is None or not tablero.es_mini_tablero_disponible(*tablero_destino):
+    if tablero_destino is None or not tablero.es_mini_tablero_disponible(
+        *tablero_destino
+    ):
         return BONO_LIBERTAD_ELECCION
 
     mini = tablero.obtener_mini_tablero(*tablero_destino)
@@ -619,38 +672,33 @@ def evaluar_amenaza_destino(tablero: Tablero, tablero_destino: Optional[Tuple[in
     return amenazas_propias - amenazas_rivales
 
 
-def movimiento_completa_linea(tablero_3x3: List[List[Optional[str]]],
-                              fila: int, col: int, jugador: str) -> bool:
+def movimiento_completa_linea(
+    tablero_3x3: List[List[Optional[str]]], fila: int, col: int, jugador: str
+) -> bool:
     """Indica si colocar una marca en una casilla vacía completa una línea."""
     return any(
         (fila, col) in linea
-        and all(
-            tablero_3x3[f][c] == jugador
-            for f, c in linea
-            if (f, c) != (fila, col)
-        )
+        and all(tablero_3x3[f][c] == jugador for f, c in linea if (f, c) != (fila, col))
         for linea in LINEAS_MINI_TABLERO
     )
 
 
-def contar_amenazas_creadas(tablero_3x3: List[List[Optional[str]]],
-                            fila: int, col: int, jugador: str) -> int:
+def contar_amenazas_creadas(
+    tablero_3x3: List[List[Optional[str]]], fila: int, col: int, jugador: str
+) -> int:
     """Cuenta amenazas nuevas que aparecerían al jugar en ``(fila, col)``."""
     creadas = 0
     for linea in LINEAS_MINI_TABLERO:
         if (fila, col) in linea:
-            otros = [
-                tablero_3x3[f][c]
-                for f, c in linea
-                if (f, c) != (fila, col)
-            ]
+            otros = [tablero_3x3[f][c] for f, c in linea if (f, c) != (fila, col)]
             if otros.count(jugador) == 1 and otros.count(None) == 1:
                 creadas += 1
     return creadas
 
 
-def evaluar_amenaza_destino_futura(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]],
-                                   jugador_actual: str) -> int:
+def evaluar_amenaza_destino_futura(
+    tablero: Tablero, tablero_destino: Optional[Tuple[int, int]], jugador_actual: str
+) -> int:
     """
     Extiende evaluar_amenaza_destino un nivel más: no solo "¿es peligroso
     el mini-tablero al que me mandan?", sino "de las casillas que puedo
@@ -662,20 +710,22 @@ def evaluar_amenaza_destino_futura(tablero: Tablero, tablero_destino: Optional[T
     permite distinguir dos victorias locales que envían al rival a campos
     diferentes.
 
-    Returns:
+    Retorna:
         Puntuación en perspectiva de jugador_actual, o 0 si no existe un
         campo obligatorio jugable.
     """
     oponente = JUGADOR_O if jugador_actual == JUGADOR_X else JUGADOR_X
 
-    if tablero_destino is None or not tablero.es_mini_tablero_disponible(*tablero_destino):
+    if tablero_destino is None or not tablero.es_mini_tablero_disponible(
+        *tablero_destino
+    ):
         return 0
 
     mini = tablero.obtener_mini_tablero(*tablero_destino)
     casillas_vacias = [
         (fila, col)
-        for fila in range(TAMAÑO_MINI)
-        for col in range(TAMAÑO_MINI)
+        for fila in range(DIMENSION_MINI)
+        for col in range(DIMENSION_MINI)
         if mini[fila][col] is None
     ]
     if not casillas_vacias:
@@ -683,12 +733,8 @@ def evaluar_amenaza_destino_futura(tablero: Tablero, tablero_destino: Optional[T
 
     valores_movimientos = []
     for fila, col in casillas_vacias:
-        gana_campo = movimiento_completa_linea(
-            mini, fila, col, jugador_actual
-        )
-        amenazas_creadas = contar_amenazas_creadas(
-            mini, fila, col, jugador_actual
-        )
+        gana_campo = movimiento_completa_linea(mini, fila, col, jugador_actual)
+        amenazas_creadas = contar_amenazas_creadas(mini, fila, col, jugador_actual)
         cierra_el_destino_elegido = gana_campo and (fila, col) == tablero_destino
         destino_libre = (
             not tablero.es_mini_tablero_disponible(fila, col)
@@ -698,26 +744,25 @@ def evaluar_amenaza_destino_futura(tablero: Tablero, tablero_destino: Optional[T
             peligro = BONO_LIBERTAD_ELECCION
         else:
             siguiente = tablero.obtener_mini_tablero(fila, col)
-            peligro = (
-                contar_2_en_linea(siguiente, oponente)
-                - contar_2_en_linea(siguiente, jugador_actual)
+            peligro = contar_2_en_linea(siguiente, oponente) - contar_2_en_linea(
+                siguiente, jugador_actual
             )
-        beneficio = (
-            BONO_GANAR_MINI_TABLERO * int(gana_campo)
-            + amenazas_creadas
-        )
+        beneficio = BONO_GANAR_MINI_TABLERO * int(gana_campo) + amenazas_creadas
         valores_movimientos.append(beneficio - peligro)
 
     return max(valores_movimientos)
 
 
-def evaluar_posicion(tablero: Tablero, es_maximizando: bool,
-                     tablero_destino: Optional[Tuple[int, int]] = None,
-                     debug: bool = False) -> int:
+def evaluar_posicion(
+    tablero: Tablero,
+    es_maximizando: bool,
+    tablero_destino: Optional[Tuple[int, int]] = None,
+    mostrar_desglose: bool = False,
+) -> int:
     """
     Evalúa la posición actual del tablero usando heurística multi-componente.
 
-    Argumentos:
+    Parámetros:
         tablero: Estado actual del juego
         es_maximizando: True si estamos evaluando para X (maximizador),
                        False si estamos evaluando para O (minimizador).
@@ -727,15 +772,11 @@ def evaluar_posicion(tablero: Tablero, es_maximizando: bool,
         tablero_destino: Mini-tablero al que está obligado a jugar quien
                        mueve ahora (fila_meta, col_meta), o None si puede
                        elegir libremente.
-        debug: Si True, imprime el desglose por componente (crudo y
-               ponderado) antes de retornar. Usar solo para diagnóstico
-               manual — minimax() lo llama sin este flag (miles de veces
-               por jugada), así que activarlo dentro de la búsqueda
-               inundaría la terminal y la haría mucho más lenta. Se deja
-               como evidencia del proceso de prueba/depuración usado
-               durante el desarrollo.
+        mostrar_desglose: Si es ``True``, imprime el valor sin ponderar, el
+            peso y el aporte de cada componente. Se usa solo para diagnóstico
+            manual, porque Minimax llama esta función miles de veces.
 
-    Returns:
+    Retorna:
         Puntuación heurística (negativa para O favorable, positiva para X
         favorable). VALOR_GANADOR/VALOR_PERDEDOR/VALOR_EMPATE si el juego
         ya terminó.
@@ -751,15 +792,19 @@ def evaluar_posicion(tablero: Tablero, es_maximizando: bool,
     """
     ganador = tablero.detectar_ganador_meta()
     if ganador == JUGADOR_X:
-        if debug:
-            print(f"[evaluar_posicion] TERMINAL: X ya ganó el meta-tablero -> {VALOR_GANADOR}")
+        if mostrar_desglose:
+            print(
+                f"[evaluar_posicion] TERMINAL: X ya ganó el meta-tablero -> {VALOR_GANADOR}"
+            )
         return VALOR_GANADOR
     if ganador == JUGADOR_O:
-        if debug:
-            print(f"[evaluar_posicion] TERMINAL: O ya ganó el meta-tablero -> {VALOR_PERDEDOR}")
+        if mostrar_desglose:
+            print(
+                f"[evaluar_posicion] TERMINAL: O ya ganó el meta-tablero -> {VALOR_PERDEDOR}"
+            )
         return VALOR_PERDEDOR
     if tablero.verificar_empate():
-        if debug:
+        if mostrar_desglose:
             print(f"[evaluar_posicion] TERMINAL: empate -> {VALOR_EMPATE}")
         return VALOR_EMPATE
 
@@ -769,10 +814,20 @@ def evaluar_posicion(tablero: Tablero, es_maximizando: bool,
     defensa = evaluar_defensa(tablero)
     control = evaluar_control_posiciones(tablero)
     mini = evaluar_mini_tableros(tablero)
-    amenaza_destino_propia = evaluar_amenaza_destino(tablero, tablero_destino, jugador_actual)
-    amenaza_destino = amenaza_destino_propia if jugador_actual == JUGADOR_X else -amenaza_destino_propia
-    amenaza_futura_propia = evaluar_amenaza_destino_futura(tablero, tablero_destino, jugador_actual)
-    amenaza_futura = amenaza_futura_propia if jugador_actual == JUGADOR_X else -amenaza_futura_propia
+    amenaza_destino_propia = evaluar_amenaza_destino(
+        tablero, tablero_destino, jugador_actual
+    )
+    amenaza_destino = (
+        amenaza_destino_propia
+        if jugador_actual == JUGADOR_X
+        else -amenaza_destino_propia
+    )
+    amenaza_futura_propia = evaluar_amenaza_destino_futura(
+        tablero, tablero_destino, jugador_actual
+    )
+    amenaza_futura = (
+        amenaza_futura_propia if jugador_actual == JUGADOR_X else -amenaza_futura_propia
+    )
 
     componentes = [
         ("progreso_meta", progreso, PESO_PROGRESO_META_TABLERO),
@@ -785,10 +840,14 @@ def evaluar_posicion(tablero: Tablero, es_maximizando: bool,
     ]
     puntuacion = sum(crudo * peso for _, crudo, peso in componentes)
 
-    if debug:
-        print("[evaluar_posicion] " + " | ".join(
-            f"{nombre}={crudo} (x{peso}={crudo * peso})" for nombre, crudo, peso in componentes
-        ))
+    if mostrar_desglose:
+        print(
+            "[evaluar_posicion] "
+            + " | ".join(
+                f"{nombre}={crudo} (x{peso}={crudo * peso})"
+                for nombre, crudo, peso in componentes
+            )
+        )
         print(f"[evaluar_posicion] TOTAL = {puntuacion}")
 
     return puntuacion
@@ -799,26 +858,26 @@ def evaluar_posicion(tablero: Tablero, es_maximizando: bool,
 # =============================================================================
 #
 # Optimizaciones implementadas:
-# 1. Alpha-Beta Pruning
-# 2. Transposition Table (con límite de tamaño)
-# 3. Move Ordering (incluye PV move ordering entre profundidades)
-# 4. Iterative Deepening con presupuesto de tiempo adaptativo, corte duro
+# 1. Poda alfa-beta.
+# 2. Tabla de transposiciones con límite de tamaño.
+# 3. Ordenamiento de movimientos: prueba primero las jugadas prometedoras.
+# 4. Profundización iterativa con presupuesto adaptativo y corte
 #    si se agota el tiempo, y corte anticipado si ya se probó una
 #    victoria/derrota forzada
 # 5. Valores terminales ajustados por profundidad (VALOR_GANADOR - nivel):
 #    la IA prefiere ganar rápido y retrasar una derrota inevitable
 # 6. Estadísticas de la última búsqueda en `ultimas_estadisticas`
-# 7. Desempate aleatorio entre movimientos raíz igualmente óptimos (evita
-#    que el self-play IA vs IA sea siempre la misma partida)
+# 7. Selección segura del primer valor óptimo exacto en la raíz: no confunde
+#    con un empate las cotas generadas por la poda alfa-beta.
 
 TIPO_EXACTO = "EXACTO"
 TIPO_COTA_INFERIOR = "COTA_INFERIOR"
 TIPO_COTA_SUPERIOR = "COTA_SUPERIOR"
 
 
-class TranspositionTable:
+class TablaTransposiciones:
     """
-    Cachea evaluaciones de posiciones para no recalcularlas.
+    Guarda evaluaciones de posiciones para no calcularlas de nuevo.
 
     Cada entrada distingue entre un valor exacto, una cota inferior y una
     cota superior. Así una rama cortada por alfa-beta nunca se reutiliza
@@ -826,10 +885,10 @@ class TranspositionTable:
     """
 
     def __init__(self):
+        """Inicializa una tabla de transposiciones vacía."""
         self.tabla: Dict[object, Tuple[int, str]] = {}
 
-    def guardar(self, hash_estado: object, valor: int,
-                tipo: str = TIPO_EXACTO) -> None:
+    def guardar(self, hash_estado: object, valor: int, tipo: str = TIPO_EXACTO) -> None:
         """Guarda puntuación y tipo de cota sin exceder el límite."""
         if len(self.tabla) >= LIMITE_ESTADOS_MEMORIA:
             return
@@ -844,11 +903,11 @@ class TranspositionTable:
         self.tabla.clear()
 
 
-class TiempoAgotado(Exception):
+class TiempoAgotadoError(Exception):
     """Señal interna para abortar minimax en curso cuando se acaba el tiempo."""
 
 
-# Deadline absoluto (time.monotonic()) durante una llamada a mejor_movimiento().
+# Instante límite absoluto de ``time.monotonic()`` durante la búsqueda.
 _tiempo_limite_absoluto: Optional[float] = None
 
 # Nodos visitados durante la búsqueda en curso (para estadísticas).
@@ -859,34 +918,36 @@ _contador_nodos: int = 0
 ultimas_estadisticas: Dict[str, object] = {}
 
 
-def _mueve_completa_linea(tablero_3x3: List[List[Optional[str]]], fila: int, col: int, valor: str) -> bool:
+def _mueve_completa_linea(
+    tablero_3x3: List[List[Optional[str]]], fila: int, col: int, valor: str
+) -> bool:
     """Indica si colocar `valor` en (fila, col) completaría una línea de 3, sin modificar el mini-tablero."""
     return any(
         (fila, col) in linea
-        and all(
-            tablero_3x3[f][c] == valor
-            for f, c in linea
-            if (f, c) != (fila, col)
-        )
+        and all(tablero_3x3[f][c] == valor for f, c in linea if (f, c) != (fila, col))
         for linea in LINEAS_MINI_TABLERO
     )
 
 
-def ordenar_movimientos(tablero: Tablero, movimientos: list,
-                       tablero_destino: Optional[Tuple[int, int]],
-                       jugador: str,
-                       movimiento_preferido: Optional[Tuple[int, int, int, int]] = None) -> list:
+def ordenar_movimientos(
+    tablero: Tablero,
+    movimientos: list,
+    tablero_destino: Optional[Tuple[int, int]],
+    jugador: str,
+    movimiento_preferido: Optional[Tuple[int, int, int, int]] = None,
+) -> list:
     """
-    Ordena movimientos para mejorar la poda de Alpha-Beta.
+    Ordena movimientos para mejorar la poda alfa-beta.
 
-    Orden: (0) movimiento_preferido si está en la lista (PV move
-    ordering), (1) movimientos que ganan un mini-tablero de inmediato,
+    Orden: (0) movimiento_preferido si está en la lista, (1) movimientos
+    que ganan un mini-tablero de inmediato,
     (2) movimientos que bloquean una victoria del oponente, (3) el resto;
     dentro de cada grupo, prioriza campos de mayor IMPORTANCIA_CAMPO.
     """
     oponente = JUGADOR_O if jugador == JUGADOR_X else JUGADOR_X
 
     def prioridad(movimiento):
+        """Asigna un grupo táctico y una prioridad posicional a la jugada."""
         if movimiento == movimiento_preferido:
             return (-1, 0)
 
@@ -903,35 +964,43 @@ def ordenar_movimientos(tablero: Tablero, movimientos: list,
     return sorted(movimientos, key=prioridad)
 
 
-def minimax(tablero: Tablero, profundidad: int, alfa: float, beta: float,
-            es_maximizando: bool, tablero_destino: Optional[Tuple[int, int]],
-            cache: TranspositionTable, nivel: int = 0) -> int:
+def minimax(
+    tablero: Tablero,
+    profundidad: int,
+    alfa: float,
+    beta: float,
+    es_maximizando: bool,
+    tablero_destino: Optional[Tuple[int, int]],
+    tabla_transposiciones: TablaTransposiciones,
+    nivel: int = 0,
+) -> int:
     """
-    Evaluación recursiva usando Minimax con Alpha-Beta Pruning.
+    Evalúa recursivamente una posición con Minimax y poda alfa-beta.
 
-    Args:
+    Parámetros:
         tablero: Estado actual
         profundidad: Cuántos movimientos adelante buscar (0 = usar heurística)
         alfa, beta: Ventana de poda
         es_maximizando: True si es turno de X (max), False si es turno de O (min)
         tablero_destino: Restricción de dónde jugar
-        cache: Transposition Table para cachear posiciones repetidas
+        tabla_transposiciones: Memoria de posiciones evaluadas durante esta
+            profundidad de búsqueda.
         nivel: Distancia (en jugadas) desde la raíz de esta búsqueda. Se
                resta/suma a los valores terminales para que la IA prefiera
                ganar rápido y retrasar una derrota inevitable.
 
-    Nota sobre la cache y `nivel`: como el valor terminal depende de
-    `nivel` (no solo de `profundidad`), una entrada cacheada en una pasada
-    de iterative deepening con profundidad_inicial=N ya NO es válida para
-    una pasada con profundidad_inicial=M distinto. Por eso
-    mejor_movimiento() crea una `cache` nueva en cada profundidad del
-    iterative deepening en vez de reutilizar una sola durante todo el ciclo.
+    Como el valor terminal depende de ``nivel``, una entrada guardada en una
+    pasada de profundización no es válida para otra profundidad inicial. Por
+    eso ``mejor_movimiento()`` crea una tabla nueva en cada pasada.
     """
     global _contador_nodos
     _contador_nodos += 1
 
-    if _tiempo_limite_absoluto is not None and time.monotonic() >= _tiempo_limite_absoluto:
-        raise TiempoAgotado()
+    if (
+        _tiempo_limite_absoluto is not None
+        and time.monotonic() >= _tiempo_limite_absoluto
+    ):
+        raise TiempoAgotadoError()
 
     ganador = tablero.detectar_ganador_meta()
     if ganador == JUGADOR_X:
@@ -943,44 +1012,60 @@ def minimax(tablero: Tablero, profundidad: int, alfa: float, beta: float,
 
     alfa_original = alfa
     beta_original = beta
-    clave_cache = (tablero.get_estado_hash(), profundidad, tablero_destino, es_maximizando)
-    entrada_cache = cache.obtener(clave_cache)
-    if entrada_cache is not None:
-        valor_cacheado, tipo_cache = entrada_cache
-        if tipo_cache == TIPO_EXACTO:
-            return valor_cacheado
-        if tipo_cache == TIPO_COTA_INFERIOR:
-            alfa = max(alfa, valor_cacheado)
-        elif tipo_cache == TIPO_COTA_SUPERIOR:
-            beta = min(beta, valor_cacheado)
+    clave_tabla = (
+        tablero.obtener_hash_estado(),
+        profundidad,
+        tablero_destino,
+        es_maximizando,
+    )
+    entrada_guardada = tabla_transposiciones.obtener(clave_tabla)
+    if entrada_guardada is not None:
+        valor_guardado, tipo_guardado = entrada_guardada
+        if tipo_guardado == TIPO_EXACTO:
+            return valor_guardado
+        if tipo_guardado == TIPO_COTA_INFERIOR:
+            alfa = max(alfa, valor_guardado)
+        elif tipo_guardado == TIPO_COTA_SUPERIOR:
+            beta = min(beta, valor_guardado)
         if alfa >= beta:
-            return valor_cacheado
+            return valor_guardado
 
     if profundidad == 0:
         valor = evaluar_posicion(tablero, es_maximizando, tablero_destino)
-        cache.guardar(clave_cache, valor, TIPO_EXACTO)
+        tabla_transposiciones.guardar(clave_tabla, valor, TIPO_EXACTO)
         return valor
 
     jugador_actual = JUGADOR_X if es_maximizando else JUGADOR_O
     movimientos = movimientos_validos(tablero, tablero_destino)
-    movimientos = ordenar_movimientos(tablero, movimientos, tablero_destino, jugador_actual)
+    movimientos = ordenar_movimientos(
+        tablero, movimientos, tablero_destino, jugador_actual
+    )
 
     if not movimientos:
         valor = evaluar_posicion(tablero, es_maximizando, tablero_destino)
-        cache.guardar(clave_cache, valor, TIPO_EXACTO)
+        tabla_transposiciones.guardar(clave_tabla, valor, TIPO_EXACTO)
         return valor
 
     if es_maximizando:
-        valor = float('-inf')
+        valor = float("-inf")
         indice = 0
         while indice < len(movimientos) and alfa < beta:
             movimiento = movimientos[indice]
             tablero.aplicar_movimiento(*movimiento, jugador_actual)
             siguiente_destino = (movimiento[2], movimiento[3])
             try:
-                valor_hijo = minimax(tablero, profundidad - 1, alfa, beta, False, siguiente_destino, cache, nivel + 1)
+                valor_hijo = minimax(
+                    tablero,
+                    profundidad - 1,
+                    alfa,
+                    beta,
+                    False,
+                    siguiente_destino,
+                    tabla_transposiciones,
+                    nivel + 1,
+                )
             finally:
-                # Si minimax() lanza TiempoAgotado, este deshacer DEBE
+                # Si minimax() lanza TiempoAgotadoError, este deshacer DEBE
                 # ejecutarse igual: es lo único que evita dejar el
                 # movimiento pegado permanentemente al tablero real
                 # mientras la excepción se propaga por la recursión.
@@ -989,14 +1074,23 @@ def minimax(tablero: Tablero, profundidad: int, alfa: float, beta: float,
             alfa = max(alfa, valor)
             indice += 1
     else:
-        valor = float('inf')
+        valor = float("inf")
         indice = 0
         while indice < len(movimientos) and alfa < beta:
             movimiento = movimientos[indice]
             tablero.aplicar_movimiento(*movimiento, jugador_actual)
             siguiente_destino = (movimiento[2], movimiento[3])
             try:
-                valor_hijo = minimax(tablero, profundidad - 1, alfa, beta, True, siguiente_destino, cache, nivel + 1)
+                valor_hijo = minimax(
+                    tablero,
+                    profundidad - 1,
+                    alfa,
+                    beta,
+                    True,
+                    siguiente_destino,
+                    tabla_transposiciones,
+                    nivel + 1,
+                )
             finally:
                 tablero.deshacer_movimiento()
             valor = min(valor, valor_hijo)
@@ -1009,25 +1103,29 @@ def minimax(tablero: Tablero, profundidad: int, alfa: float, beta: float,
         tipo_valor = TIPO_COTA_INFERIOR
     else:
         tipo_valor = TIPO_EXACTO
-    cache.guardar(clave_cache, valor, tipo_valor)
+    tabla_transposiciones.guardar(clave_tabla, valor, tipo_valor)
     return valor
 
 
-def obtener_mejor_movimiento_hoja(tablero: Tablero, profundidad: int,
-                                   alfa: float, beta: float, es_maximizando: bool,
-                                   tablero_destino: Optional[Tuple[int, int]],
-                                   cache: TranspositionTable,
-                                   movimiento_preferido: Optional[Tuple[int, int, int, int]] = None
-                                   ) -> Optional[Tuple[int, int, int, int, int]]:
+def obtener_mejor_movimiento_hoja(
+    tablero: Tablero,
+    profundidad: int,
+    alfa: float,
+    beta: float,
+    es_maximizando: bool,
+    tablero_destino: Optional[Tuple[int, int]],
+    tabla_transposiciones: TablaTransposiciones,
+    movimiento_preferido: Optional[Tuple[int, int, int, int]] = None,
+) -> Optional[Tuple[int, int, int, int, int]]:
     """
     Versión de minimax que además retorna qué movimiento en la raíz produjo
     la mejor puntuación (minimax() solo retorna la puntuación).
 
-    Args:
+    Parámetros:
         movimiento_preferido: Mejor jugada encontrada en la profundidad
-            anterior del iterative deepening, si la hay.
+            anterior de la profundización iterativa, si la hay.
 
-    Returns:
+    Retorna:
         (fila_meta, col_meta, fila_mini, col_mini, puntuacion) del mejor
         movimiento raíz, o None si no hay movimientos legales.
 
@@ -1040,18 +1138,29 @@ def obtener_mejor_movimiento_hoja(tablero: Tablero, profundidad: int,
     movimientos = movimientos_validos(tablero, tablero_destino)
     if not movimientos:
         return None
-    movimientos = ordenar_movimientos(tablero, movimientos, tablero_destino, jugador_actual, movimiento_preferido)
+    movimientos = ordenar_movimientos(
+        tablero, movimientos, tablero_destino, jugador_actual, movimiento_preferido
+    )
 
     mejor_movimiento = movimientos[0]
     if es_maximizando:
-        mejor_valor = float('-inf')
+        mejor_valor = float("-inf")
         indice = 0
         while indice < len(movimientos) and alfa < beta:
             movimiento = movimientos[indice]
             tablero.aplicar_movimiento(*movimiento, jugador_actual)
             siguiente_destino = (movimiento[2], movimiento[3])
             try:
-                valor = minimax(tablero, profundidad - 1, alfa, beta, False, siguiente_destino, cache, nivel=1)
+                valor = minimax(
+                    tablero,
+                    profundidad - 1,
+                    alfa,
+                    beta,
+                    False,
+                    siguiente_destino,
+                    tabla_transposiciones,
+                    nivel=1,
+                )
             finally:
                 tablero.deshacer_movimiento()
             if valor > mejor_valor:
@@ -1060,14 +1169,23 @@ def obtener_mejor_movimiento_hoja(tablero: Tablero, profundidad: int,
             alfa = max(alfa, mejor_valor)
             indice += 1
     else:
-        mejor_valor = float('inf')
+        mejor_valor = float("inf")
         indice = 0
         while indice < len(movimientos) and alfa < beta:
             movimiento = movimientos[indice]
             tablero.aplicar_movimiento(*movimiento, jugador_actual)
             siguiente_destino = (movimiento[2], movimiento[3])
             try:
-                valor = minimax(tablero, profundidad - 1, alfa, beta, True, siguiente_destino, cache, nivel=1)
+                valor = minimax(
+                    tablero,
+                    profundidad - 1,
+                    alfa,
+                    beta,
+                    True,
+                    siguiente_destino,
+                    tabla_transposiciones,
+                    nivel=1,
+                )
             finally:
                 tablero.deshacer_movimiento()
             if valor < mejor_valor:
@@ -1117,19 +1235,22 @@ def _calcular_presupuesto(tablero: Tablero, tiempo_limite: float) -> float:
     return max(0.0, min(presupuesto, tiempo_limite))
 
 
-def mejor_movimiento(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]],
-                     tiempo_limite: float = TIEMPO_LIMITE) -> Optional[Tuple[int, int, int, int]]:
+def mejor_movimiento(
+    tablero: Tablero,
+    tablero_destino: Optional[Tuple[int, int]],
+    tiempo_limite: float = TIEMPO_LIMITE,
+) -> Optional[Tuple[int, int, int, int]]:
     """
-    Encuentra el mejor movimiento usando Iterative Deepening + Minimax con
-    Alpha-Beta Pruning.
+    Encuentra el mejor movimiento con profundización iterativa, Minimax y
+    poda alfa-beta.
 
-    Args:
+    Parámetros:
         tablero: Estado actual
         tablero_destino: Dónde debe jugar (None si puede jugar en cualquier lado)
         tiempo_limite: Segundos máximos para decidir; el presupuesto real
             usado puede ser menor (ver _calcular_presupuesto) pero nunca mayor.
 
-    Returns:
+    Retorna:
         Tupla (fila_meta, col_meta, fila_mini, col_mini) del mejor
         movimiento encontrado, o None si no hay movimientos legales.
 
@@ -1188,10 +1309,16 @@ def mejor_movimiento(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]
 
             resultado = None
             if seguir_buscando:
-                cache = TranspositionTable()
+                tabla_transposiciones = TablaTransposiciones()
                 resultado = obtener_mejor_movimiento_hoja(
-                    tablero, profundidad, float('-inf'), float('inf'),
-                    es_maximizando, tablero_destino, cache, movimiento_preferido
+                    tablero,
+                    profundidad,
+                    float("-inf"),
+                    float("inf"),
+                    es_maximizando,
+                    tablero_destino,
+                    tabla_transposiciones,
+                    movimiento_preferido,
                 )
 
             if resultado is None:
@@ -1204,7 +1331,7 @@ def mejor_movimiento(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]
                 seguir_buscando = abs(mejor_valor) < VALOR_GANADOR // 2
 
             profundidad += 1
-    except TiempoAgotado:
+    except TiempoAgotadoError:
         busqueda_interrumpida = True
     finally:
         _tiempo_limite_absoluto = None
@@ -1225,17 +1352,20 @@ def mejor_movimiento(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]
 # INTERFAZ DE TERMINAL
 # =============================================================================
 
+
 def _simbolo_campo(tablero: Tablero, fila_meta: int, col_meta: int) -> str:
     """Regresa el símbolo a mostrar para un campo del meta-tablero: su letra (A-I) si sigue en juego, o 'X'/'O'/'=' si ya se decidió."""
     valor = tablero.meta_tablero[fila_meta][col_meta]
-    if valor == 'EMPATE':
-        return '='
+    if valor == "EMPATE":
+        return "="
     if valor in (JUGADOR_X, JUGADOR_O):
         return valor
     return INDICES_INVERSOS[(fila_meta, col_meta)]
 
 
-def _simbolo_celda(tablero: Tablero, fila_meta: int, col_meta: int, fila_mini: int, col_mini: int) -> str:
+def _simbolo_celda(
+    tablero: Tablero, fila_meta: int, col_meta: int, fila_mini: int, col_mini: int
+) -> str:
     """Retorna el símbolo a mostrar para una casilla: su letra (a-i) si está vacía, o 'X'/'O' si está ocupada."""
     valor = tablero.obtener_casilla(fila_meta, col_meta, fila_mini, col_mini)
     if valor is not None:
@@ -1245,47 +1375,97 @@ def _simbolo_celda(tablero: Tablero, fila_meta: int, col_meta: int, fila_mini: i
 
 def mostrar_tablero(tablero: Tablero) -> None:
     """
-    Imprime el tablero en terminal d
+    Imprime el tablero en la terminal de forma legible.
 
     Cada casilla vacía muestra su letra de posición (a-i) y cada campo
     del meta-tablero muestra su letra (A-I) mientras sigue disponible,
     para que el jugador identifique de inmediato qué escribir.
     """
     print("TABLERO ACTUAL:\n")
-    for bloque_fila in range(TAMAÑO_META):
+    for bloque_fila in range(DIMENSION_META):
         encabezados = []
-        for col_meta in range(TAMAÑO_META):
+        for col_meta in range(DIMENSION_META):
             letra_campo = INDICES_INVERSOS[(bloque_fila, col_meta)]
             estado = tablero.meta_tablero[bloque_fila][col_meta]
             etiqueta = f"CAMPO {letra_campo}"
             if estado in (JUGADOR_X, JUGADOR_O):
                 etiqueta += f" [ganador: {estado}]"
-            elif estado == 'EMPATE':
+            elif estado == "EMPATE":
                 etiqueta += " [empate]"
             encabezados.append(etiqueta.ljust(20))
         print("  ".join(encabezados))
 
-        for fila_mini in range(TAMAÑO_MINI):
+        for fila_mini in range(DIMENSION_MINI):
             partes = []
-            for col_meta in range(TAMAÑO_META):
+            for col_meta in range(DIMENSION_META):
                 celdas = [
                     _simbolo_celda(tablero, bloque_fila, col_meta, fila_mini, col_mini)
-                    for col_mini in range(TAMAÑO_MINI)
+                    for col_mini in range(DIMENSION_MINI)
                 ]
-                partes.append('  '.join(celdas).ljust(20))
+                partes.append("  ".join(celdas).ljust(20))
             print("  ".join(partes))
         print()
 
     print("META-TABLERO:")
-    for fila_meta in range(TAMAÑO_META):
-        print(' | '.join(_simbolo_campo(tablero, fila_meta, c) for c in range(TAMAÑO_META)))
-        if fila_meta < TAMAÑO_META - 1:
-            print('-' * 9)
+    for fila_meta in range(DIMENSION_META):
+        print(
+            " | ".join(
+                _simbolo_campo(tablero, fila_meta, c) for c in range(DIMENSION_META)
+            )
+        )
+        if fila_meta < DIMENSION_META - 1:
+            print("-" * 9)
 
 
 def mostrar_mensaje(mensaje: str) -> None:
     """Imprime un mensaje de estado al usuario."""
     print(mensaje)
+
+
+def convertir_movimiento_a_texto(movimiento: Tuple[int, int, int, int]) -> str:
+    """Convierte cuatro índices internos a la notación del torneo, como ``Gc``.
+
+    Parámetros:
+        movimiento: Tupla ``(fila_meta, columna_meta, fila_mini,
+            columna_mini)``; cada índice debe estar entre 0 y 2.
+
+    Retorna:
+        Dos caracteres: campo en mayúscula y posición en minúscula.
+    """
+    fila_meta, col_meta, fila_mini, col_mini = movimiento
+    campo = INDICES_INVERSOS[(fila_meta, col_meta)]
+    posicion = INDICES_MINI_INVERSOS[(fila_mini, col_mini)]
+    return campo + posicion
+
+
+def mostrar_opciones_movimiento(
+    movimientos_legales: Sequence[Tuple[int, int, int, int]],
+) -> None:
+    """Explica el campo permitido antes de pedir la jugada del oponente.
+
+    Si todos los movimientos pertenecen al mismo campo, muestra ese campo y
+    las posiciones disponibles. Si la regla permite elección libre, muestra
+    los campos abiertos. La lista recibida debe venir de
+    ``movimientos_validos()``.
+    """
+    campos = sorted(
+        {
+            INDICES_INVERSOS[(movimiento[0], movimiento[1])]
+            for movimiento in movimientos_legales
+        }
+    )
+    if len(campos) == 1:
+        opciones = ", ".join(
+            convertir_movimiento_a_texto(movimiento)
+            for movimiento in movimientos_legales
+        )
+        mostrar_mensaje(
+            f"Campo obligatorio: {campos[0]}. Movimientos disponibles: {opciones}."
+        )
+    elif campos:
+        mostrar_mensaje(
+            "Elección libre. Campos disponibles: " + ", ".join(campos) + "."
+        )
 
 
 def convertir_texto_a_movimiento(entrada: str) -> Tuple[int, int, int, int]:
@@ -1317,7 +1497,7 @@ def obtener_movimiento_usuario() -> Tuple[int, int, int, int]:
 
     Repite la petición hasta recibir una entrada válida.
 
-    Returns:
+    Retorna:
         Tupla (fila_meta, col_meta, fila_mini, col_mini)
     """
     movimiento = None
@@ -1330,11 +1510,13 @@ def obtener_movimiento_usuario() -> Tuple[int, int, int, int]:
     return movimiento
 
 
-def mostrar_movimiento(campo: str, posicion: Optional[str] = None, jugador: Optional[str] = None) -> None:
+def mostrar_movimiento(
+    campo: str, posicion: Optional[str] = None, jugador: Optional[str] = None
+) -> None:
     """
     Muestra un movimiento en formato "Campo+Posición" (ej. "Gc").
 
-    Args:
+    Parámetros:
         campo: Letra del campo ('G'), o el movimiento completo ('Gc') si posicion es None
         posicion: Letra de la posición ('c'), opcional si ya viene junto en campo
         jugador: Nombre de quién juega (por defecto "Jugador")
@@ -1344,7 +1526,9 @@ def mostrar_movimiento(campo: str, posicion: Optional[str] = None, jugador: Opti
     mostrar_mensaje(f"{quien} juega: {movimiento}")
 
 
-def mostrar_movimiento_ia(fila_meta: int, col_meta: int, fila_mini: int, col_mini: int) -> None:
+def mostrar_movimiento_ia(
+    fila_meta: int, col_meta: int, fila_mini: int, col_mini: int
+) -> None:
     """Muestra el movimiento que hizo la IA. Ejemplo: "IA juega: Gc"."""
     campo = INDICES_INVERSOS[(fila_meta, col_meta)]
     posicion = INDICES_MINI_INVERSOS[(fila_mini, col_mini)]
@@ -1372,9 +1556,11 @@ def solicitar_primer_jugador() -> str:
     """Pregunta si comienza nuestro sistema o el jugador externo."""
     respuesta = ""
     while respuesta not in ("S", "E"):
-        respuesta = input(
-            "¿A quién le toca comenzar? [S]istema / jugador [E]xterno: "
-        ).strip().upper()
+        respuesta = (
+            input("¿A quién le toca comenzar? [S]istema / jugador [E]xterno: ")
+            .strip()
+            .upper()
+        )
         if respuesta in ("S", "E"):
             mostrar_mensaje(
                 "Comienza nuestro sistema y jugará como X."
@@ -1382,9 +1568,7 @@ def solicitar_primer_jugador() -> str:
                 else "Comienza el jugador externo y jugará como X."
             )
         else:
-            mostrar_mensaje(
-                f"Respuesta inválida: '{respuesta}'. Escribe 'S' o 'E'."
-            )
+            mostrar_mensaje(f"Respuesta inválida: '{respuesta}'. Escribe 'S' o 'E'.")
     return "SISTEMA" if respuesta == "S" else "EXTERNO"
 
 
@@ -1400,10 +1584,13 @@ def mostrar_estado_juego(tablero: Tablero, turno: str) -> None:
 
 
 # =============================================================================
-# LOOP PRINCIPAL DEL JUEGO
+# CICLO PRINCIPAL DEL JUEGO
 # =============================================================================
 
-def obtener_movimiento_valido(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]]) -> Tuple[int, int, int, int]:
+
+def obtener_movimiento_valido(
+    tablero: Tablero, tablero_destino: Optional[Tuple[int, int]]
+) -> Tuple[int, int, int, int]:
     """
     Pide movimientos al usuario hasta obtener uno legal.
 
@@ -1411,11 +1598,14 @@ def obtener_movimiento_valido(tablero: Tablero, tablero_destino: Optional[Tuple[
     tablero_destino vigente (respeta la casilla obligatoria y que esté vacía).
     """
     movimientos_legales = movimientos_validos(tablero, tablero_destino)
+    mostrar_opciones_movimiento(movimientos_legales)
     while True:
         movimiento = obtener_movimiento_usuario()
         if movimiento in movimientos_legales:
             return movimiento
-        mostrar_mensaje("Movimiento no permitido: la casilla está ocupada o no corresponde al campo obligatorio.")
+        mostrar_mensaje(
+            "Movimiento no permitido: la casilla está ocupada o no corresponde al campo obligatorio."
+        )
 
 
 def imprimir_resultado(tablero: Tablero) -> None:
@@ -1428,21 +1618,30 @@ def imprimir_resultado(tablero: Tablero) -> None:
         mostrar_mensaje("EMPATE")
 
 
-def _movimiento_ia(tablero: Tablero, tablero_destino: Optional[Tuple[int, int]]) -> Tuple[int, int, int, int]:
+def _movimiento_ia(
+    tablero: Tablero, tablero_destino: Optional[Tuple[int, int]]
+) -> Tuple[int, int, int, int]:
     """Obtiene el movimiento de la IA (minimax), lo anuncia y muestra estadísticas de la búsqueda."""
     movimiento = mejor_movimiento(tablero, tablero_destino)
+    if movimiento is None:
+        raise RuntimeError("La IA no encontró movimientos en una posición activa.")
     mostrar_movimiento_ia(*movimiento)
     mostrar_estadisticas_ia(ultimas_estadisticas)
     return movimiento
 
 
-ObtenerMovimiento = Callable[[Tablero, Optional[Tuple[int, int]]], Tuple[int, int, int, int]]
+TipoObtenerMovimiento = Callable[
+    [Tablero, Optional[Tuple[int, int]]], Tuple[int, int, int, int]
+]
 
 
-def _ejecutar_partida(tablero: Tablero, obtener_movimiento_x: ObtenerMovimiento,
-                     obtener_movimiento_o: ObtenerMovimiento) -> None:
+def _ejecutar_partida(
+    tablero: Tablero,
+    obtener_movimiento_x: TipoObtenerMovimiento,
+    obtener_movimiento_o: TipoObtenerMovimiento,
+) -> None:
     """
-    Corre el loop principal de una partida, delegando en las funciones dadas
+    Ejecuta el ciclo principal de una partida y delega en las funciones dadas
     cómo obtener el movimiento de X y de O (humano o IA) en cada turno.
     """
     es_turno_x = True
@@ -1464,8 +1663,7 @@ def _ejecutar_partida(tablero: Tablero, obtener_movimiento_x: ObtenerMovimiento,
         tablero.aplicar_movimiento(*movimiento, jugador)
 
         partida_terminada = (
-            tablero.detectar_ganador_meta() is not None
-            or tablero.verificar_empate()
+            tablero.detectar_ganador_meta() is not None or tablero.verificar_empate()
         )
         if partida_terminada:
             imprimir_resultado(tablero)
