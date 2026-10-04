@@ -14,7 +14,7 @@ proyecto.
 |---|---|
 | Abrir el proyecto en Spyder o entregar un solo archivo | `codigo_final_spyder/gato_de_gatos.py` |
 | Estudiar o modificar el programa por módulos | `python -m src.main` |
-| Ejecutar las 100 pruebas finales | `python -m pytest tests/test_gato_de_gatos.py -q` |
+| Ejecutar las 200 pruebas finales | `python -m pytest tests/test_gato_de_gatos.py -q` |
 | Consultar la versión anterior | `version_anterior/gato_de_gatos_anterior.py` |
 
 > La versión oficial actual es `codigo_final_spyder/gato_de_gatos.py`. La
@@ -29,7 +29,7 @@ Se necesita Python 3.10 o posterior. El juego no requiere bibliotecas externas.
 
 1. Abrir `codigo_final_spyder/gato_de_gatos.py`.
 2. Presionar **Run** o **Ejecutar**.
-3. Elegir uno de los tres modos de juego.
+3. Indicar si comienza nuestro sistema o el jugador externo.
 
 ### Desde una terminal
 
@@ -45,22 +45,18 @@ Versión de un solo archivo:
 python codigo_final_spyder/gato_de_gatos.py
 ```
 
-El menú ofrece:
-
-1. Humano contra humano.
-2. IA contra IA.
-3. Humano contra IA.
+La entrada normal abre directamente la partida requerida para el torneo. Los
+modos de demostración humano contra humano e IA contra IA siguen disponibles
+mediante las funciones de `src/main.py`, pero no retrasan la pregunta inicial
+obligatoria.
 
 ## Regla importante sobre X y O
 
-**X siempre hace el primer movimiento.** La pregunta del programa no decide
-quién comienza por separado; pregunta qué símbolo quiere usar la persona:
-
-- Si elige **X**, comienza la persona.
-- Si elige **O**, la IA usa X y comienza la partida.
-
-Así se respeta la regla normal del juego y se evita pedir dos decisiones que
-podrían contradecirse.
+El programa pregunta primero si comienza **nuestro sistema** o el **jugador
+externo**, tal como se necesita en el torneo. La parte que obtuvo el primer
+turno recibe X internamente y la otra recibe O. De esta manera X continúa
+siendo el primer símbolo para Minimax, pero no se confunde el símbolo con el
+resultado de la moneda.
 
 ## Cómo se escribe un movimiento
 
@@ -173,7 +169,9 @@ Esto reduce el trabajo sin cambiar la decisión que produciría Minimax.
 La búsqueda prueba profundidad 1, después 2, después 3 y así sucesivamente.
 Si se agota el tiempo, conserva el mejor movimiento de la última profundidad
 terminada. El presupuesto cambia según la etapa de la partida y nunca supera
-el límite recibido.
+el límite recibido: 15 segundos en apertura, 20 en medio juego y 27 en el
+final. El reglamento permite 30 segundos, así que quedan tres segundos de
+margen.
 
 ### Tabla de transposiciones
 
@@ -195,13 +193,17 @@ favorece a O.
 
 | Componente | Qué observa | Peso |
 |---|---|---:|
-| Progreso meta | Amenazas para ganar el tablero completo | 10 |
-| Bifurcaciones | Dos o más amenazas simultáneas | 7 |
-| Defensa | Amenazas locales de ambos jugadores | 6 |
-| Posiciones clave | Centro, esquinas y bordes ganados | 7 |
-| Control local | Casillas y amenazas dentro de los campos | 3 |
-| Destino inmediato | Si se manda al rival a un campo peligroso | 8 |
-| Destino futuro | A qué campo podría mandar después al rival | 4 |
+| Progreso meta | Líneas abiertas con uno o dos campos ganados | 18 |
+| Bifurcaciones | Bono por cada amenaza simultánea adicional | 6 |
+| Defensa | Amenazas inmediatas en campos todavía jugables | 5 |
+| Posiciones clave | Centro, esquinas y bordes ya ganados | 6 |
+| Control local | Líneas en desarrollo ponderadas por relevancia global | 1 |
+| Destino inmediato | Situación táctica del campo obligatorio | 8 |
+| Destino futuro | Campo ganado, amenaza creada y destino del rival | 4 |
+
+Los campos cerrados no producen amenazas locales y cada patrón tiene una sola
+responsabilidad: desarrollo, amenaza o bifurcación. Esto evita premiar varias
+veces la misma figura.
 
 La explicación completa y los ejemplos numéricos están en
 [`documentacion/heuristica.md`](documentacion/heuristica.md).
@@ -214,9 +216,9 @@ mal conservarla. La versión actual cambia principalmente lo siguiente:
 | Antes | Ahora |
 |---|---|
 | Un archivo procedural con listas y funciones | Código modular con una clase `Tablero`, más un archivo único sincronizado |
-| Se preguntaba quién comenzaba | Se pregunta si la persona quiere X u O; X siempre comienza |
+| Se preguntaba qué símbolo quería la persona | Se pregunta directamente si comienza el sistema o el jugador externo |
 | Un modo principal de humano contra sistema | Tres modos: humano vs humano, IA vs IA y humano vs IA |
-| Pruebas básicas dentro del mismo archivo | 100 pruebas finales y 20 pruebas históricas con `pytest` |
+| Pruebas básicas dentro del mismo archivo | 200 pruebas finales y 20 pruebas históricas con `pytest` |
 | Documentos y código mezclados en la raíz | Carpetas separadas y nombres consistentes |
 | Tabla de memoria limitada a resultados completos | Tabla que además identifica valores exactos y cotas de alfa-beta |
 | Validaciones concentradas en la interfaz | Reglas validadas también por el propio objeto `Tablero` |
@@ -232,7 +234,7 @@ Instalar la única dependencia de desarrollo:
 python -m pip install -r requirements-dev.txt
 ```
 
-Ejecutar las 100 pruebas finales:
+Ejecutar las 200 pruebas finales:
 
 ```bash
 python -m pytest tests/test_gato_de_gatos.py -q
@@ -267,7 +269,7 @@ versión modular y el archivo de Spyder.
 ## Estado actual
 
 - El código modular y el archivo para Spyder están sincronizados.
-- Las 100 pruebas finales y las 20 históricas deben aprobar.
+- Las 200 pruebas finales y las 20 históricas deben aprobar.
 - GitHub Actions compila el proyecto y ejecuta la suite final en cada pull
   request.
 - Los cambios de organización se preparan en una rama antes de llegar a

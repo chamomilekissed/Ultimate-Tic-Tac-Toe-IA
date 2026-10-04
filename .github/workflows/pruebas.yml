@@ -4,6 +4,7 @@ on:
   pull_request:
   push:
     branches:
+      - ana_correcciones_final
       - correcciones_ana
       - correccion-final-100-pruebas
       - main
@@ -26,5 +27,5 @@ jobs:
       - name: Verificar sintaxis
         run: python -m compileall -q .
 
-      - name: Ejecutar los 100 casos
+      - name: Ejecutar los 200 casos
         run: python -m pytest tests/test_gato_de_gatos.py -q

@@ -14,8 +14,11 @@ solo programa de Python.
 
 1. Abrir `gato_de_gatos.py` en Spyder.
 2. Presionar **Run**.
-3. Elegir el modo de juego.
+3. Indicar si comienza el sistema (`S`) o el jugador externo (`E`).
 4. Escribir movimientos con dos letras, por ejemplo `Gc`.
+
+Quien comienza usa X internamente. Esta asignación la realiza el programa y
+no se pide escoger un símbolo por separado.
 
 También se puede ejecutar desde la raíz del repositorio:
 

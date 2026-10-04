@@ -6,15 +6,15 @@ desempeno: tasa de victorias de X vs O, empates, duracion promedio de
 partida, etc.
 
 No modifica minimax.py ni evaluador.py -- solo ejecuta la IA tal como esta
-y mide resultados sobre muchas partidas. Sirve para convertir "creo que X
-domina" en un dato real, y como base para comparar variantes de pesos en el
-futuro (self-play con desempate aleatorio ya no repite la misma partida).
+y mide resultados de integración. Como la decisión final es determinista, dos
+partidas desde el tablero vacío pueden repetir la misma secuencia. Para
+comparar heurísticas deben alternarse ambas evaluaciones y usarse aperturas
+legales variadas, como se hizo en la calibración final documentada.
 
 Uso:
     python3 -m src.torneo                    # 20 partidas, 2s por jugada
     python3 -m src.torneo 30                 # 30 partidas, 2s por jugada
     python3 -m src.torneo 30 1.0             # 30 partidas, 1s por jugada
-    python3 -m src.torneo 30 1.0 --seed 42   # reproducible
 
 Nota sobre tiempo_limite: el presupuesto real por jugada sigue acotado por
 la logica de mejor_movimiento() (adaptativo por etapa de partida, nunca
@@ -27,9 +27,8 @@ mucho mas en total.
 import statistics
 import sys
 import time
-import random
 from pathlib import Path
-from typing import List, Optional
+from typing import List
 
 from . import tablero as tb
 from . import minimax as mm
@@ -81,8 +80,7 @@ def jugar_partida_silenciosa(tiempo_limite: float) -> dict:
     }
 
 
-def correr_torneo(num_partidas: int, tiempo_limite: float,
-                   semilla: Optional[int] = None) -> List[dict]:
+def correr_torneo(num_partidas: int, tiempo_limite: float) -> List[dict]:
     """
     Corre `num_partidas` partidas IA vs IA headless, imprime el progreso
     con un marcador acumulado, y al final reporta estadisticas agregadas
@@ -92,9 +90,6 @@ def correr_torneo(num_partidas: int, tiempo_limite: float,
         La lista de resultados (uno por partida), por si se quiere seguir
         analizando en el mismo proceso (ej. desde una sesion interactiva).
     """
-    if semilla is not None:
-        random.seed(semilla)
-
     resultados: List[dict] = []
     victorias_x = victorias_o = empates = 0
 
@@ -168,8 +163,4 @@ def _guardar_log(resultados: List[dict], ruta: Path, tiempo_limite: float) -> No
 if __name__ == "__main__":
     _num_partidas = int(sys.argv[1]) if len(sys.argv) > 1 and not sys.argv[1].startswith("--") else 20
     _tiempo_limite = float(sys.argv[2]) if len(sys.argv) > 2 and not sys.argv[2].startswith("--") else 2.0
-    _semilla = None
-    if "--seed" in sys.argv:
-        _semilla = int(sys.argv[sys.argv.index("--seed") + 1])
-
-    correr_torneo(_num_partidas, _tiempo_limite, _semilla)
+    correr_torneo(_num_partidas, _tiempo_limite)

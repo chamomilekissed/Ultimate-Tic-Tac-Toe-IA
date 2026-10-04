@@ -18,6 +18,34 @@ from typing import List, Optional, Tuple
 from . import tablero as tb
 
 
+def contar_lineas_abiertas(tablero_3x3: List[List[Optional[str]]],
+                           jugador: str, cantidad_marcas: int) -> int:
+    """
+    Cuenta líneas que solo contienen marcas de ``jugador`` y casillas vacías.
+
+    Args:
+        tablero_3x3: Mini-tablero o meta-tablero de 3 por 3.
+        jugador: ``'X'`` o ``'O'``.
+        cantidad_marcas: Cantidad exacta de marcas buscadas, 1 o 2.
+
+    Returns:
+        Número de líneas abiertas con la cantidad indicada de marcas.
+
+    Una línea con una marca rival o con ``'EMPATE'`` está cerrada para el
+    jugador y no se cuenta. Separar líneas de una y dos marcas permite que el
+    progreso temprano no valga lo mismo que una amenaza inmediata.
+    """
+    conteo = 0
+    if cantidad_marcas in (1, 2):
+        for linea in LINEAS_MINI_TABLERO:
+            valores = [tablero_3x3[fila][col] for fila, col in linea]
+            marcas_correctas = valores.count(jugador) == cantidad_marcas
+            vacias_correctas = valores.count(None) == 3 - cantidad_marcas
+            if marcas_correctas and vacias_correctas:
+                conteo += 1
+    return conteo
+
+
 def contar_2_en_linea(tablero_3x3: List[List[Optional[str]]], jugador: str) -> int:
     """
     Cuenta cuántas líneas tienen 2 del jugador y 1 casilla vacía (amenaza).
@@ -30,12 +58,34 @@ def contar_2_en_linea(tablero_3x3: List[List[Optional[str]]], jugador: str) -> i
     Returns:
         Número de líneas con 2 del jugador y la tercera casilla vacía
     """
-    conteo = 0
-    for linea in LINEAS_MINI_TABLERO:
-        valores = [tablero_3x3[fila][col] for fila, col in linea]
-        if valores.count(jugador) == 2 and valores.count(None) == 1:
-            conteo += 1
-    return conteo
+    return contar_lineas_abiertas(tablero_3x3, jugador, 2)
+
+
+def contar_1_en_linea(tablero_3x3: List[List[Optional[str]]], jugador: str) -> int:
+    """Cuenta líneas abiertas con una marca del jugador y dos casillas vacías."""
+    return contar_lineas_abiertas(tablero_3x3, jugador, 1)
+
+
+def contar_lineas_meta_relevantes(tablero: "tb.Tablero", fila_meta: int,
+                                  col_meta: int, jugador: str) -> int:
+    """
+    Cuenta líneas del meta-tablero donde el campo indicado todavía puede
+    contribuir a una victoria de ``jugador``.
+
+    Una línea deja de ser relevante si contiene un campo del rival o un campo
+    empatado. Con esto la evaluación local depende del estado real del juego:
+    una casilla en un campo que participa en varias líneas abiertas vale más
+    que una casilla ubicada en una zona que ya no ayuda a formar tres campos.
+    """
+    rival = JUGADOR_O if jugador == JUGADOR_X else JUGADOR_X
+    posicion = (fila_meta, col_meta)
+    relevantes = 0
+    for linea in LINEAS_META_TABLERO:
+        if posicion in linea:
+            valores = [tablero.meta_tablero[fila][col] for fila, col in linea]
+            if rival not in valores and 'EMPATE' not in valores:
+                relevantes += 1
+    return relevantes
 
 
 def evaluar_progreso_meta(tablero: "tb.Tablero") -> int:
@@ -44,8 +94,8 @@ def evaluar_progreso_meta(tablero: "tb.Tablero") -> int:
 
     Returns:
         VALOR_GANADOR si X ya ganó el juego, VALOR_PERDEDOR si ganó O;
-        de lo contrario, la diferencia de amenazas (2-en-línea) de X menos O
-        en el meta-tablero.
+        de lo contrario, la diferencia ponderada entre líneas abiertas con
+        uno o dos campos ganados.
     """
     ganador = tablero.detectar_ganador_meta()
     if ganador == JUGADOR_X:
@@ -53,9 +103,15 @@ def evaluar_progreso_meta(tablero: "tb.Tablero") -> int:
     if ganador == JUGADOR_O:
         return VALOR_PERDEDOR
 
-    amenazas_x = contar_2_en_linea(tablero.meta_tablero, JUGADOR_X)
-    amenazas_o = contar_2_en_linea(tablero.meta_tablero, JUGADOR_O)
-    return amenazas_x - amenazas_o
+    progreso_x = (
+        contar_1_en_linea(tablero.meta_tablero, JUGADOR_X) * VALOR_LINEA_META_UN_CAMPO
+        + contar_2_en_linea(tablero.meta_tablero, JUGADOR_X) * VALOR_LINEA_META_DOS_CAMPOS
+    )
+    progreso_o = (
+        contar_1_en_linea(tablero.meta_tablero, JUGADOR_O) * VALOR_LINEA_META_UN_CAMPO
+        + contar_2_en_linea(tablero.meta_tablero, JUGADOR_O) * VALOR_LINEA_META_DOS_CAMPOS
+    )
+    return progreso_x - progreso_o
 
 
 def evaluar_bifurcaciones(tablero: "tb.Tablero") -> int:
@@ -66,48 +122,48 @@ def evaluar_bifurcaciones(tablero: "tb.Tablero") -> int:
     Returns:
         Puntuación positiva si X tiene bifurcaciones, negativa si O las tiene
 
-    Nota: evalúa los 9 mini-tableros, incluyendo los ya decididos. Un
-    mini-tablero recién ganado sigue conteniendo sus marcas reales (ganar
-    no borra el contenido, solo fija meta_tablero); excluirlo aquí haría
-    que la señal de dominio local desaparezca justo al completar la
-    victoria, penalizando ganar en vez de premiarlo (bug real detectado
-    en partida: ver evaluar_posicion).
+    Solo se revisan campos todavía jugables. Las amenazas internas de un campo
+    cerrado ya no pueden ejecutarse y, por lo tanto, no deben influir.
+
+    Una amenaza individual se cuenta en evaluar_defensa(). Aquí solo se suma
+    el exceso sobre la primera amenaza: dos amenazas producen un bono de uno,
+    tres producen un bono de dos, etc. Así la bifurcación recibe un premio
+    específico sin volver a sumar todas las amenazas completas.
     """
     puntuacion = 0
     for fila_meta in range(TAMAÑO_META):
         for col_meta in range(TAMAÑO_META):
-            mini = tablero.obtener_mini_tablero(fila_meta, col_meta)
-            amenazas_x = contar_2_en_linea(mini, JUGADOR_X)
-            amenazas_o = contar_2_en_linea(mini, JUGADOR_O)
-            if amenazas_x >= 2:
-                puntuacion += amenazas_x
-            if amenazas_o >= 2:
-                puntuacion -= amenazas_o
+            if tablero.es_mini_tablero_disponible(fila_meta, col_meta):
+                mini = tablero.obtener_mini_tablero(fila_meta, col_meta)
+                amenazas_x = contar_2_en_linea(mini, JUGADOR_X)
+                amenazas_o = contar_2_en_linea(mini, JUGADOR_O)
+                puntuacion += max(0, amenazas_x - 1)
+                puntuacion -= max(0, amenazas_o - 1)
     return puntuacion
 
 
 def evaluar_defensa(tablero: "tb.Tablero") -> int:
     """
-    Evalúa el peligro inmediato: suma de amenazas (2-en-línea) de cada
-    jugador en todos los mini-tableros disponibles.
+    Evalúa el peligro inmediato: suma amenazas de dos marcas en los
+    mini-tableros que todavía se pueden jugar.
 
-    A diferencia de evaluar_bifurcaciones (que premia la concentración de
-    amenazas en un mismo mini-tablero), esta función cuenta el peligro total
-    disperso en cualquier mini-tablero jugable.
+    A diferencia de evaluar_bifurcaciones(), cada amenaza aparece exactamente
+    una vez aquí. La función de bifurcaciones solo añade el bono correspondiente
+    a tener varias amenazas simultáneas en el mismo campo.
 
     Returns:
         Puntuación positiva si X tiene más amenazas activas, negativa si O
 
-    Nota: evalúa los 9 mini-tableros, incluyendo los ya decididos (ver
-    evaluar_bifurcaciones para el motivo).
+    Los campos ganados o empatados se excluyen porque no admiten más jugadas.
     """
     amenazas_x_total = 0
     amenazas_o_total = 0
     for fila_meta in range(TAMAÑO_META):
         for col_meta in range(TAMAÑO_META):
-            mini = tablero.obtener_mini_tablero(fila_meta, col_meta)
-            amenazas_x_total += contar_2_en_linea(mini, JUGADOR_X)
-            amenazas_o_total += contar_2_en_linea(mini, JUGADOR_O)
+            if tablero.es_mini_tablero_disponible(fila_meta, col_meta):
+                mini = tablero.obtener_mini_tablero(fila_meta, col_meta)
+                amenazas_x_total += contar_2_en_linea(mini, JUGADOR_X)
+                amenazas_o_total += contar_2_en_linea(mini, JUGADOR_O)
     return amenazas_x_total - amenazas_o_total
 
 
@@ -134,11 +190,12 @@ def evaluar_control_posiciones(tablero: "tb.Tablero") -> int:
 
 def evaluar_mini_tableros(tablero: "tb.Tablero") -> int:
     """
-    Evalúa la posesión local de cada uno de los 9 mini-tableros.
+    Evalúa líneas locales que apenas están comenzando en campos jugables.
 
-    Compara casillas ocupadas por X vs O y sus amenazas (2-en-línea)
-    potenciales, incluyendo mini-tableros ya decididos (ver
-    evaluar_bifurcaciones para el motivo).
+    Solo cuenta líneas con una marca y dos espacios. Las amenazas de dos
+    marcas pertenecen a evaluar_defensa(), de modo que no se duplican. Cada
+    línea se multiplica por la cantidad de líneas abiertas del meta-tablero a
+    las que todavía puede contribuir ese campo.
 
     Returns:
         Puntuación agregada positiva si favorece a X, negativa si favorece a O
@@ -146,12 +203,18 @@ def evaluar_mini_tableros(tablero: "tb.Tablero") -> int:
     puntuacion = 0
     for fila_meta in range(TAMAÑO_META):
         for col_meta in range(TAMAÑO_META):
-            mini = tablero.obtener_mini_tablero(fila_meta, col_meta)
-            casillas_x = sum(fila.count(JUGADOR_X) for fila in mini)
-            casillas_o = sum(fila.count(JUGADOR_O) for fila in mini)
-            amenazas_x = contar_2_en_linea(mini, JUGADOR_X)
-            amenazas_o = contar_2_en_linea(mini, JUGADOR_O)
-            puntuacion += (casillas_x - casillas_o) + (amenazas_x - amenazas_o)
+            if tablero.es_mini_tablero_disponible(fila_meta, col_meta):
+                mini = tablero.obtener_mini_tablero(fila_meta, col_meta)
+                desarrollo_x = contar_1_en_linea(mini, JUGADOR_X)
+                desarrollo_o = contar_1_en_linea(mini, JUGADOR_O)
+                relevancia_x = contar_lineas_meta_relevantes(
+                    tablero, fila_meta, col_meta, JUGADOR_X
+                )
+                relevancia_o = contar_lineas_meta_relevantes(
+                    tablero, fila_meta, col_meta, JUGADOR_O
+                )
+                puntuacion += desarrollo_x * relevancia_x
+                puntuacion -= desarrollo_o * relevancia_o
     return puntuacion
 
 
@@ -180,12 +243,42 @@ def evaluar_amenaza_destino(tablero: "tb.Tablero", tablero_destino: Optional[Tup
     oponente = JUGADOR_O if jugador_actual == JUGADOR_X else JUGADOR_X
 
     if tablero_destino is None or not tablero.es_mini_tablero_disponible(*tablero_destino):
-        return 1
+        return BONO_LIBERTAD_ELECCION
 
     mini = tablero.obtener_mini_tablero(*tablero_destino)
     amenazas_propias = contar_2_en_linea(mini, jugador_actual)
     amenazas_rivales = contar_2_en_linea(mini, oponente)
     return amenazas_propias - amenazas_rivales
+
+
+def movimiento_completa_linea(tablero_3x3: List[List[Optional[str]]],
+                              fila: int, col: int, jugador: str) -> bool:
+    """Indica si colocar una marca en una casilla vacía completa una línea."""
+    return any(
+        (fila, col) in linea
+        and all(
+            tablero_3x3[f][c] == jugador
+            for f, c in linea
+            if (f, c) != (fila, col)
+        )
+        for linea in LINEAS_MINI_TABLERO
+    )
+
+
+def contar_amenazas_creadas(tablero_3x3: List[List[Optional[str]]],
+                            fila: int, col: int, jugador: str) -> int:
+    """Cuenta amenazas nuevas que aparecerían al jugar en ``(fila, col)``."""
+    creadas = 0
+    for linea in LINEAS_MINI_TABLERO:
+        if (fila, col) in linea:
+            otros = [
+                tablero_3x3[f][c]
+                for f, c in linea
+                if (f, c) != (fila, col)
+            ]
+            if otros.count(jugador) == 1 and otros.count(None) == 1:
+                creadas += 1
+    return creadas
 
 
 def evaluar_amenaza_destino_futura(tablero: "tb.Tablero", tablero_destino: Optional[Tuple[int, int]],
@@ -196,18 +289,11 @@ def evaluar_amenaza_destino_futura(tablero: "tb.Tablero", tablero_destino: Optio
     jugar ahí, ¿a qué campo mandaría yo al rival después, y qué tan
     peligroso es ESE campo para él?".
 
-    Si jugador_actual ya tiene una victoria inmediata en el mini-tablero
-    obligatorio, tomarla domina cualquier otra consideración (tiene premio
-    propio mucho mayor vía evaluar_control_posiciones/evaluar_progreso_meta)
-    y no tiene sentido asomarse más allá — se retorna 0. Si no, se asume
-    que jugador_actual jugaría racionalmente la casilla que manda al rival
-    al campo que MENOS le convenga a él (el rival).
-
-    Es una aproximación barata (un tablero más por casilla candidata, sin
-    simular el movimiento de verdad con aplicar_movimiento/deshacer) — no
-    reemplaza una búsqueda real de minimax, solo le da a la heurística de
-    hoja un poco más de "olfato" sobre el efecto en cadena de la regla del
-    tablero obligatorio, más allá del mini-tablero inmediato.
+    Para cada casilla legal estima tres efectos: si gana el campo actual, si
+    crea una amenaza nueva y qué peligro encontrará el rival en el campo de
+    destino. Después conserva la mejor alternativa disponible para el jugador
+    actual. Esto distingue dos movimientos ganadores que envían al rival a
+    lugares distintos, algo que la versión anterior no hacía.
 
     Args:
         tablero: Estado actual del juego
@@ -216,8 +302,7 @@ def evaluar_amenaza_destino_futura(tablero: "tb.Tablero", tablero_destino: Optio
 
     Returns:
         Puntuación en perspectiva de jugador_actual (positiva = le
-        conviene), o 0 si no aplica (sin destino, ya decidido, tablero
-        lleno, o ya hay una victoria inmediata disponible ahí mismo).
+        conviene), o 0 si no existe un destino obligatorio jugable.
     """
     oponente = JUGADOR_O if jugador_actual == JUGADOR_X else JUGADOR_X
 
@@ -225,9 +310,6 @@ def evaluar_amenaza_destino_futura(tablero: "tb.Tablero", tablero_destino: Optio
         return 0
 
     mini = tablero.obtener_mini_tablero(*tablero_destino)
-    if contar_2_en_linea(mini, jugador_actual) > 0:
-        return 0
-
     casillas_vacias = [
         (fila, col)
         for fila in range(TAMAÑO_MINI)
@@ -237,23 +319,35 @@ def evaluar_amenaza_destino_futura(tablero: "tb.Tablero", tablero_destino: Optio
     if not casillas_vacias:
         return 0
 
-    peligros_para_rival = []
+    valores_movimientos = []
     for fila, col in casillas_vacias:
-        if not tablero.es_mini_tablero_disponible(fila, col):
-            # Mandar al rival a un campo cerrado le permite elegir cualquier
-            # campo abierto. Esa libertad lo favorece, por eso representa un
-            # peligro pequeño en lugar de un valor neutral.
-            peligro = 1
+        gana_campo = movimiento_completa_linea(
+            mini, fila, col, jugador_actual
+        )
+        amenazas_creadas = contar_amenazas_creadas(
+            mini, fila, col, jugador_actual
+        )
+        cierra_el_destino_elegido = gana_campo and (fila, col) == tablero_destino
+        destino_libre = (
+            not tablero.es_mini_tablero_disponible(fila, col)
+            or cierra_el_destino_elegido
+        )
+
+        if destino_libre:
+            peligro = BONO_LIBERTAD_ELECCION
         else:
             siguiente = tablero.obtener_mini_tablero(fila, col)
             peligro = (
                 contar_2_en_linea(siguiente, oponente)
                 - contar_2_en_linea(siguiente, jugador_actual)
             )
-        peligros_para_rival.append(peligro)
+        beneficio = (
+            BONO_GANAR_MINI_TABLERO * int(gana_campo)
+            + amenazas_creadas
+        )
+        valores_movimientos.append(beneficio - peligro)
 
-    mejor_para_jugador_actual = min(peligros_para_rival)
-    return -mejor_para_jugador_actual
+    return max(valores_movimientos)
 
 
 def evaluar_posicion(tablero: "tb.Tablero", es_maximizando: bool,

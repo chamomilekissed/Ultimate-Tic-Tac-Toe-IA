@@ -17,12 +17,10 @@ Optimizaciones implementadas:
    IA prefiere ganar rápido y retrasar una derrota inevitable
 6. Estadísticas de la última búsqueda expuestas en `ultimas_estadisticas`
    (nodos visitados, profundidad alcanzada, valor, tiempo, presupuesto)
-7. Desempate aleatorio entre movimientos raíz igualmente óptimos (ver nota
-   en obtener_mejor_movimiento_hoja): sin esto, self-play es 100%
-   determinista y siempre produce la misma partida
+7. Selección segura del primer movimiento óptimo en la raíz. No se sortean
+   valores que podrían ser solamente cotas producidas por la poda alfa-beta.
 """
 
-import random
 import time
 from typing import Optional, Tuple, Dict, List
 from .config import *
@@ -281,14 +279,12 @@ def obtener_mejor_movimiento_hoja(tablero: "tb.Tablero", profundidad: int,
         (fila_meta, col_meta, fila_mini, col_mini, puntuacion) del mejor
         movimiento raíz, o None si no hay movimientos legales.
 
-    Nota: cuando varios movimientos raíz empatan en la misma puntuación
-    óptima, se elige uno al azar entre ellos (en vez de siempre el primero
-    según el orden de ordenar_movimientos). Sin esto, minimax es 100%
-    determinista y una partida IA vs IA desde el tablero vacío es SIEMPRE
-    la misma jugada por jugada — jugarla varias veces no da información
-    nueva. El desempate aleatorio no cambia la calidad de juego (todos los
-    movimientos empatados son igual de óptimos por definición), solo hace
-    que el self-play explore líneas distintas cada vez.
+    Nota sobre los empates: una búsqueda con ventana alfa-beta estrecha puede
+    devolver una cota igual al mejor valor conocido aunque el valor exacto de
+    esa rama sea peor. Por eso se conserva el primer movimiento que alcanza
+    el mejor valor y solo se reemplaza cuando aparece una mejora estricta. La
+    versión anterior guardaba todas las igualdades y sorteaba entre ellas, lo
+    que podía escoger como "empatada" una jugada realmente inferior.
     """
     jugador_actual = JUGADOR_X if es_maximizando else JUGADOR_O
     movimientos = mov.movimientos_validos(tablero, tablero_destino)
@@ -296,7 +292,7 @@ def obtener_mejor_movimiento_hoja(tablero: "tb.Tablero", profundidad: int,
         return None
     movimientos = ordenar_movimientos(tablero, movimientos, tablero_destino, jugador_actual, movimiento_preferido)
 
-    mejores_movimientos = [movimientos[0]]
+    mejor_movimiento = movimientos[0]
     if es_maximizando:
         mejor_valor = float('-inf')
         indice = 0
@@ -310,9 +306,7 @@ def obtener_mejor_movimiento_hoja(tablero: "tb.Tablero", profundidad: int,
                 tablero.deshacer_movimiento()
             if valor > mejor_valor:
                 mejor_valor = valor
-                mejores_movimientos = [movimiento]
-            elif valor == mejor_valor:
-                mejores_movimientos.append(movimiento)
+                mejor_movimiento = movimiento
             alfa = max(alfa, mejor_valor)
             indice += 1
     else:
@@ -328,13 +322,10 @@ def obtener_mejor_movimiento_hoja(tablero: "tb.Tablero", profundidad: int,
                 tablero.deshacer_movimiento()
             if valor < mejor_valor:
                 mejor_valor = valor
-                mejores_movimientos = [movimiento]
-            elif valor == mejor_valor:
-                mejores_movimientos.append(movimiento)
+                mejor_movimiento = movimiento
             beta = min(beta, mejor_valor)
             indice += 1
 
-    mejor_movimiento = random.choice(mejores_movimientos)
     return (*mejor_movimiento, mejor_valor)
 
 

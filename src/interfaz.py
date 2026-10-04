@@ -165,7 +165,7 @@ def mostrar_estadisticas_ia(estadisticas: dict) -> None:
     Muestra un resumen de la búsqueda que hizo la IA para decidir su
     último movimiento (minimax.ultimas_estadisticas).
 
-    Ejemplo: "Profundidad: 6 | Nodos: 12,345 | Valor: 37 | Tiempo: 3.21s / 4.0s"
+    Ejemplo: "Profundidad: 6 | Nodos: 12,345 | Valor: 37 | Tiempo: 12.4s / 15.0s"
     """
     if not estadisticas:
         return
@@ -177,27 +177,33 @@ def mostrar_estadisticas_ia(estadisticas: dict) -> None:
     )
 
 
-def solicitar_simbolo_jugador() -> str:
+def solicitar_primer_jugador() -> str:
     """
-    Pregunta con qué símbolo quiere jugar el humano (para modo humano vs IA).
+    Pregunta quién obtuvo el derecho de realizar el primer movimiento.
+
+    Esta pregunta usa los términos del torneo: ``S`` representa a nuestro
+    sistema y ``E`` al jugador externo. Quien comienza recibe internamente el
+    símbolo X; la otra parte recibe O.
 
     Returns:
-        'X' o 'O'
+        ``'SISTEMA'`` o ``'EXTERNO'``.
     """
     respuesta = ""
-    while respuesta not in (JUGADOR_X, JUGADOR_O):
+    while respuesta not in ("S", "E"):
         respuesta = input(
-            "¿Quieres ser X (empiezas tú) u O (empieza la IA)? (X/O): "
+            "¿A quién le toca comenzar? [S]istema / jugador [E]xterno: "
         ).strip().upper()
-        if respuesta in (JUGADOR_X, JUGADOR_O):
+        if respuesta in ("S", "E"):
             mostrar_mensaje(
-                "Elegiste X: tú comienzas."
-                if respuesta == JUGADOR_X
-                else "Elegiste O: la IA comienza con X."
+                "Comienza nuestro sistema y jugará como X."
+                if respuesta == "S"
+                else "Comienza el jugador externo y jugará como X."
             )
         else:
-            mostrar_mensaje(f"Respuesta inválida: '{respuesta}'. Escribe 'X' o 'O'.")
-    return respuesta
+            mostrar_mensaje(
+                f"Respuesta inválida: '{respuesta}'. Escribe 'S' o 'E'."
+            )
+    return "SISTEMA" if respuesta == "S" else "EXTERNO"
 
 
 def solicitar_modo_juego() -> str:

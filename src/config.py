@@ -53,13 +53,25 @@ VALOR_EMPATE = 0
 
 # ===== PESOS DE LA FUNCIÓN HEURÍSTICA =====
 
-PESO_PROGRESO_META_TABLERO = 10  # ¿Cuántos campos ha ganado?
-PESO_AMENAZAS_BIFURCACIONES = 7  # ¿Tiene 2 amenazas? ¿El oponente las tiene?
-PESO_DEFENSA_CRITICA = 6         # ¿El oponente va a ganar pronto?
-PESO_POSICIONES_CLAVE = 7        # ¿Controla centro/esquinas del meta-tablero?
-PESO_CONTROL_LOCAL = 3           # Evaluación dentro de mini-tableros
-PESO_AMENAZA_DESTINO = 8         # ¿A qué mini-tablero se manda al rival: es un regalo o una trampa?
-PESO_AMENAZA_DESTINO_FUTURA = 4  # Un nivel más: de mis casillas disponibles, ¿a dónde mandaría yo al rival después?
+# La evaluación separa señales que representan conocimientos distintos. Así
+# se evita sumar tres veces la misma amenaza local, que era una deficiencia de
+# la versión anterior. Esta combinación fue seleccionada mediante partidas
+# cruzadas contra la evaluación anterior, alternando X y O.
+PESO_PROGRESO_META_TABLERO = 18   # Líneas abiertas de uno o dos campos en el meta-tablero
+PESO_AMENAZAS_BIFURCACIONES = 6   # Bono exclusivo por cada amenaza adicional de una bifurcación
+PESO_DEFENSA_CRITICA = 5          # Amenazas inmediatas en campos que todavía se pueden jugar
+PESO_POSICIONES_CLAVE = 6         # Campos ya ganados: centro, esquinas y bordes
+PESO_CONTROL_LOCAL = 1            # Líneas locales en desarrollo, sin volver a contar amenazas inmediatas
+PESO_AMENAZA_DESTINO = 8          # Situación táctica del campo obligatorio del siguiente turno
+PESO_AMENAZA_DESTINO_FUTURA = 4   # Consecuencia de cada posible campo al que se enviará al rival
+
+# Valores no ponderados usados para distinguir progreso temprano de una
+# amenaza casi completa. Dos marcas/campos en una línea valen bastante más
+# que uno, pero una victoria siempre se decide con VALOR_GANADOR.
+VALOR_LINEA_META_UN_CAMPO = 1
+VALOR_LINEA_META_DOS_CAMPOS = 8
+BONO_LIBERTAD_ELECCION = 2
+BONO_GANAR_MINI_TABLERO = 3
 
 # ===== CONSTANTES DE MINIMAX (BÚSQUEDA) =====
 
@@ -68,9 +80,12 @@ PESO_AMENAZA_DESTINO_FUTURA = 4  # Un nivel más: de mis casillas disponibles, �
 # reciba mejor_movimiento(); nunca lo excede, solo puede acortarlo.
 CASILLAS_RESTANTES_APERTURA = 55
 CASILLAS_RESTANTES_MEDIO = 25
-TIEMPO_APERTURA = 4.0
-TIEMPO_MEDIO_PARTIDA = 10.0
-TIEMPO_FINAL_PARTIDA = 25.0
+# El reglamento permite hasta 30 segundos por decisión. Se aprovecha más ese
+# límite sin llegar a él, dejando tres segundos de margen para la interfaz y
+# las variaciones de velocidad del equipo donde se ejecute.
+TIEMPO_APERTURA = 15.0
+TIEMPO_MEDIO_PARTIDA = 20.0
+TIEMPO_FINAL_PARTIDA = 27.0
 
 # Tamaño máximo de la Transposition Table (entradas) antes de dejar de guardar más
 LIMITE_ESTADOS_MEMORIA = 120_000

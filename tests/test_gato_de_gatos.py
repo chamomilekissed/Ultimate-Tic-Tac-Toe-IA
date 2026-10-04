@@ -1,4 +1,4 @@
-"""Suite final de 100 casos para Gato de Gatos.
+"""Suite final de 200 casos para Gato de Gatos.
 
 Prueba tanto la versión modular como el archivo único de entrega. Los casos
 parametrizados cuentan por separado en pytest; la distribución está explicada
@@ -228,7 +228,7 @@ def test_08_minimax_completa_victoria_global(linea, final):
     assert resultado_unico[:4] == esperada
 
 
-# Los siete casos siguientes llevan el total exacto a 100.
+# Los siete casos siguientes llevan el bloque original a 100 pruebas.
 def test_09_entradas_invalidas(final):
     invalidas = ("", "A", "Aaa", "aa", "Jb", "Az", "A1", " Gc extra ")
     for entrada in invalidas:
@@ -353,3 +353,234 @@ def test_15_sin_break_continue_ni_pass():
             if isinstance(nodo, prohibidas):
                 hallazgos.append(f"{ruta.relative_to(RAIZ)}:{nodo.lineno}")
     assert hallazgos == []
+
+
+# =============================================================================
+# 100 PRUEBAS NUEVAS PARA LAS CORRECCIONES FINALES
+# =============================================================================
+
+# 18 casos: una marca en cada casilla para cada jugador. El número de líneas
+# abiertas debe coincidir con la cantidad de líneas que atraviesan la casilla.
+CASOS_MARCA_UNICA = [
+    (jugador, posicion)
+    for jugador in (config.JUGADOR_X, config.JUGADOR_O)
+    for posicion in DESTINOS
+]
+
+
+@pytest.mark.parametrize("jugador,posicion", CASOS_MARCA_UNICA)
+def test_16_lineas_abiertas_con_una_marca(jugador, posicion, final):
+    mini = [[None for _ in range(3)] for _ in range(3)]
+    mini[posicion[0]][posicion[1]] = jugador
+    esperado = config.IMPORTANCIA_CAMPO[posicion]
+
+    assert evaluador.contar_1_en_linea(mini, jugador) == esperado
+    assert final.contar_1_en_linea(mini, jugador) == esperado
+
+
+# 16 casos: cada una de las ocho líneas representa exactamente una amenaza
+# cuando sus primeras dos posiciones pertenecen al mismo jugador.
+@pytest.mark.parametrize("jugador,linea", CASOS_LINEA)
+def test_17_amenazas_en_cada_linea(jugador, linea, final):
+    mini = [[None for _ in range(3)] for _ in range(3)]
+    for fila, columna in linea[:2]:
+        mini[fila][columna] = jugador
+
+    assert evaluador.contar_2_en_linea(mini, jugador) == 1
+    assert final.contar_2_en_linea(mini, jugador) == 1
+
+
+# 9 casos: una amenaza guardada dentro de un campo cerrado ya no puede
+# ejecutarse y, por eso, no debe aparecer como defensa ni bifurcación activa.
+@pytest.mark.parametrize("destino", DESTINOS)
+def test_18_campos_cerrados_no_generan_amenazas_fantasma(destino, final):
+    for clase, modulo in (
+        (tablero.Tablero, evaluador),
+        (final.Tablero, final),
+    ):
+        estado = clase()
+        mini = estado.obtener_mini_tablero(*destino)
+        mini[0][0] = config.JUGADOR_X
+        mini[0][1] = config.JUGADOR_X
+        estado.meta_tablero[destino[0]][destino[1]] = config.JUGADOR_X
+
+        assert modulo.evaluar_defensa(estado) == 0
+        assert modulo.evaluar_bifurcaciones(estado) == 0
+
+
+# 9 casos: una marca central dentro de un campo abierto vale más si ese campo
+# participa en más líneas globales todavía disponibles.
+@pytest.mark.parametrize("destino", DESTINOS)
+def test_19_control_local_usa_relevancia_global(destino, final):
+    esperado = 4 * config.IMPORTANCIA_CAMPO[destino]
+    for clase, modulo in (
+        (tablero.Tablero, evaluador),
+        (final.Tablero, final),
+    ):
+        estado = clase()
+        estado.obtener_mini_tablero(*destino)[1][1] = config.JUGADOR_X
+        assert modulo.evaluar_mini_tableros(estado) == esperado
+
+
+# 16 casos: dos campos propios en una línea deben representar un progreso
+# mayor que uno, con el signo correcto para X y para O.
+@pytest.mark.parametrize("jugador,linea", CASOS_LINEA)
+def test_20_progreso_meta_no_lineal(jugador, linea, final):
+    signo = 1 if jugador == config.JUGADOR_X else -1
+    for clase, modulo in (
+        (tablero.Tablero, evaluador),
+        (final.Tablero, final),
+    ):
+        uno = clase()
+        dos = clase()
+        fila_1, columna_1 = linea[0]
+        fila_2, columna_2 = linea[1]
+        uno.meta_tablero[fila_1][columna_1] = jugador
+        dos.meta_tablero[fila_1][columna_1] = jugador
+        dos.meta_tablero[fila_2][columna_2] = jugador
+
+        valor_uno = modulo.evaluar_progreso_meta(uno) * signo
+        valor_dos = modulo.evaluar_progreso_meta(dos) * signo
+        assert valor_uno > 0
+        assert valor_dos > valor_uno
+
+
+# 9 casos: ser enviado a cualquier campo cerrado libera la elección y debe
+# producir el mismo bono explícito.
+@pytest.mark.parametrize("destino", DESTINOS)
+def test_21_destino_cerrado_otorga_libertad(destino, final):
+    for clase, modulo in (
+        (tablero.Tablero, evaluador),
+        (final.Tablero, final),
+    ):
+        estado = clase()
+        estado.meta_tablero[destino[0]][destino[1]] = "EMPATE"
+        assert modulo.evaluar_amenaza_destino(
+            estado, destino, config.JUGADOR_X
+        ) == config.BONO_LIBERTAD_ELECCION
+
+
+# 16 casos: el análisis del destino futuro debe reconocer una victoria local
+# inmediata en cada línea, para cualquiera de los dos jugadores.
+@pytest.mark.parametrize("jugador,linea", CASOS_LINEA)
+def test_22_destino_futuro_reconoce_victoria_local(jugador, linea, final):
+    destino = (1, 1)
+    for clase, modulo in (
+        (tablero.Tablero, evaluador),
+        (final.Tablero, final),
+    ):
+        estado = clase()
+        mini = estado.obtener_mini_tablero(*destino)
+        for fila, columna in linea[:2]:
+            mini[fila][columna] = jugador
+        assert modulo.evaluar_amenaza_destino_futura(
+            estado, destino, jugador
+        ) > 0
+
+
+# Los siete casos siguientes llevan la suite principal al total exacto de 200.
+def test_23_raiz_minimax_no_elige_una_cota_inferior_como_empate():
+    estado, destino, es_turno_x = crear_estado_aleatorio(2, 12)
+    assert es_turno_x
+    resultado = minimax.obtener_mejor_movimiento_hoja(
+        estado, 3, float("-inf"), float("inf"), True, destino,
+        minimax.TranspositionTable(),
+    )
+    assert resultado is not None
+    elegido = resultado[:4]
+    valores_exactos = {}
+
+    for movimiento in movimientos.movimientos_validos(estado, destino):
+        assert estado.aplicar_movimiento(*movimiento, config.JUGADOR_X)
+        try:
+            valores_exactos[movimiento] = minimax.minimax(
+                estado, 2, float("-inf"), float("inf"), False,
+                (movimiento[2], movimiento[3]),
+                minimax.TranspositionTable(), nivel=1,
+            )
+        finally:
+            assert estado.deshacer_movimiento()
+
+    assert valores_exactos[elegido] == max(valores_exactos.values())
+
+
+def test_24_pregunta_inicial_sistema(monkeypatch, final):
+    monkeypatch.setattr("builtins.input", lambda mensaje: "s")
+    assert interfaz.solicitar_primer_jugador() == "SISTEMA"
+    assert final.solicitar_primer_jugador() == "SISTEMA"
+
+
+def test_25_pregunta_inicial_externo_y_reintento(monkeypatch, final):
+    respuestas_modular = iter(("x", "e"))
+    monkeypatch.setattr("builtins.input", lambda mensaje: next(respuestas_modular))
+    assert interfaz.solicitar_primer_jugador() == "EXTERNO"
+
+    respuestas_unico = iter(("o", "e"))
+    monkeypatch.setattr("builtins.input", lambda mensaje: next(respuestas_unico))
+    assert final.solicitar_primer_jugador() == "EXTERNO"
+
+
+def test_26_presupuestos_aprovechan_el_limite_sin_superarlo(final):
+    for clase, modulo in (
+        (tablero.Tablero, minimax),
+        (final.Tablero, final),
+    ):
+        apertura = clase()
+        medio = clase()
+        final_partida = clase()
+        for indice in range(4):
+            medio.meta_tablero[indice // 3][indice % 3] = "EMPATE"
+        for indice in range(7):
+            final_partida.meta_tablero[indice // 3][indice % 3] = "EMPATE"
+
+        assert modulo._calcular_presupuesto(apertura, 30) == 15.0
+        assert modulo._calcular_presupuesto(medio, 30) == 20.0
+        assert modulo._calcular_presupuesto(final_partida, 30) == 27.0
+        assert modulo._calcular_presupuesto(apertura, 0.01) <= 0.01
+
+
+def test_27_no_hay_desempate_aleatorio_en_minimax():
+    fuentes = (
+        (RAIZ / "src" / "minimax.py").read_text(encoding="utf-8"),
+        (RAIZ / "codigo_final_spyder" / "gato_de_gatos.py").read_text(
+            encoding="utf-8"
+        ),
+    )
+    assert all("random.choice" not in fuente for fuente in fuentes)
+
+
+def test_28_contenido_fantasma_no_cambia_la_evaluacion(final):
+    for clase, modulo in (
+        (tablero.Tablero, evaluador),
+        (final.Tablero, final),
+    ):
+        limpio = clase()
+        fantasma = clase()
+        limpio.meta_tablero[0][0] = config.JUGADOR_X
+        fantasma.meta_tablero[0][0] = config.JUGADOR_X
+        mini = fantasma.obtener_mini_tablero(0, 0)
+        mini[0] = [config.JUGADOR_X, config.JUGADOR_X, None]
+        mini[1] = [config.JUGADOR_O, config.JUGADOR_O, None]
+
+        assert modulo.evaluar_posicion(
+            limpio, True, (1, 1)
+        ) == modulo.evaluar_posicion(fantasma, True, (1, 1))
+
+
+def test_29_valores_no_terminales_respetan_reserva_terminal(final):
+    for semilla in range(20):
+        estado, destino, es_turno_x = crear_estado_aleatorio(
+            1000 + semilla, 8 + semilla
+        )
+        valor_modular = evaluador.evaluar_posicion(
+            estado, es_turno_x, destino
+        )
+        unico = final.Tablero()
+        unico.mini_tableros = [
+            [fila[:] for fila in mini] for mini in estado.mini_tableros
+        ]
+        unico.meta_tablero = [fila[:] for fila in estado.meta_tablero]
+        valor_unico = final.evaluar_posicion(unico, es_turno_x, destino)
+
+        assert config.VALOR_PERDEDOR < valor_modular < config.VALOR_GANADOR
+        assert valor_modular == valor_unico

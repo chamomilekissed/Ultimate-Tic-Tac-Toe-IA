@@ -20,7 +20,7 @@ python -m src.main
 | `evaluador.py` | Calcula la puntuación heurística de una posición. |
 | `minimax.py` | Elige movimientos con Minimax, alfa-beta y optimizaciones. |
 | `interfaz.py` | Lee coordenadas, valida texto y muestra el tablero. |
-| `main.py` | Coordina turnos y los tres modos de juego. |
+| `main.py` | Inicia el modo de torneo y conserva modos opcionales de demostración. |
 | `transcripciones.py` | Guarda partidas en Markdown dentro de `casos_de_estudio/`. |
 | `torneo.py` | Ejecuta varias partidas IA vs IA y guarda sus resultados. |
 
@@ -69,9 +69,11 @@ movimientos de todos los campos disponibles.
 
 ### `evaluar_posicion()`
 
-Suma siete componentes. Siempre usa la perspectiva de X: los valores positivos
-favorecen a X y los negativos a O. Los estados terminales usan valores exactos;
-la heurística solo estima estados que todavía continúan.
+Suma siete componentes sin contar varias veces el mismo patrón. Distingue
+líneas en desarrollo, amenazas inmediatas y bifurcaciones; ignora el contenido
+táctico de campos cerrados y pondera cada campo según las líneas globales que
+siguen abiertas. Siempre usa la perspectiva de X: los valores positivos
+favorecen a X y los negativos a O.
 
 ### `mejor_movimiento()`
 
@@ -85,7 +87,7 @@ igual después de buscar porque cada jugada simulada se deshace en un bloque
 Ejemplo de diez partidas con un segundo máximo por movimiento:
 
 ```bash
-python -m src.torneo 10 1.0 --seed 42
+python -m src.torneo 10 1.0
 ```
 
 Los archivos producidos se guardan en `resultados/`.

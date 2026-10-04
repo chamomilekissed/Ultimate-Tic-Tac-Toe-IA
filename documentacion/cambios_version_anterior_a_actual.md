@@ -14,8 +14,8 @@ poda alfa-beta, profundización iterativa, tiempo máximo y una heurística
 sensible al destino.
 
 La versión actual organiza esas ideas en partes más fáciles de probar, añade
-validaciones dentro del motor, aclara la elección de X u O, corrige el manejo de
-la memoria de Minimax y agrega una suite de 100 pruebas.
+validaciones dentro del motor, pregunta directamente quién comienza, corrige el
+manejo de cotas de Minimax y agrega una suite de 200 pruebas.
 
 ## Comparación general
 
@@ -25,12 +25,12 @@ la memoria de Minimax y agrega una suite de 100 pruebas.
 | Estado del juego | Listas separadas para tablero y macro-tablero | Clase `Tablero` que reúne estado, historial y reglas |
 | Casilla vacía | Cadena vacía `""` | `None` |
 | Movimiento interno | `(mini_tablero, casilla)` | `(fila_meta, col_meta, fila_mini, col_mini)` |
-| Inicio de partida | Pregunta quién comienza | Pregunta si la persona quiere X u O; X siempre comienza |
+| Inicio de partida | Pregunta quién comienza | Pregunta si comienza el sistema o el jugador externo y asigna X a quien inicia |
 | Modos | Partida contra el sistema | Humano vs humano, IA vs IA y humano vs IA |
-| Heurística | Una función extensa con pesos para sistema y rival | Siete componentes separados, siempre desde la perspectiva de X |
+| Heurística | Una función extensa con pesos para sistema y rival | Siete componentes separados, líneas abiertas y exclusión de campos cerrados |
 | Memoria de búsqueda | Guarda resultados completos | Distingue valor exacto, cota inferior y cota superior |
 | Tiempo | La recursión devuelve si terminó o agotó tiempo | Excepción interna `TiempoAgotado` y restauración con `try/finally` |
-| Pruebas | Pruebas básicas dentro del archivo | 100 pruebas finales más 20 históricas con `pytest` |
+| Pruebas | Pruebas básicas dentro del archivo | 200 pruebas finales más 20 históricas con `pytest` |
 | Documentación | README centrado en el archivo único | README principal e índice dentro de cada carpeta |
 
 ## 1. Representación del tablero
@@ -85,17 +85,19 @@ Los nombres cambiaron porque el código actual separa responsabilidades:
 | `texto_a_movimiento()` | `convertir_texto_a_movimiento()` | Convertir una entrada como `Gc`. |
 | `ejecutar_partida()` | `_ejecutar_partida()` | Coordinar turnos y final de juego. |
 
-## 3. Pregunta de X u O
+## 3. Pregunta de quién comienza
 
-La versión anterior preguntaba quién comenzaba y después asignaba X a esa
-parte. La versión actual pregunta directamente:
+La versión para torneo vuelve a preguntar directamente lo que establece el
+enunciado:
 
 ```text
-¿Quieres ser X (empiezas tú) u O (empieza la IA)? (X/O):
+¿A quién le toca comenzar? [S]istema / jugador [E]xterno:
 ```
 
-No se cambió la regla: **X siempre empieza**. Lo que cambió fue la manera de
-explicarla para que no parezca que se puede elegir O y comenzar al mismo tiempo.
+Quien comienza recibe X internamente. Así Minimax conserva la convención de que
+X realiza el primer movimiento, pero la interfaz no sustituye el resultado de
+la moneda por una elección de símbolo. El archivo ejecutable entra directamente
+al modo de torneo para que esta sea la primera pregunta.
 
 ## 4. Movimientos legales
 
@@ -116,13 +118,13 @@ La versión anterior tenía una heurística jerárquica útil. La versión actua
 divide la evaluación en siete funciones para poder probar y explicar cada
 parte:
 
-1. progreso en el meta-tablero;
-2. bifurcaciones;
-3. amenazas que requieren defensa;
+1. líneas abiertas con uno o dos campos en el meta-tablero;
+2. bono exclusivo por amenazas adicionales de una bifurcación;
+3. amenazas inmediatas en campos jugables;
 4. control de centro, esquinas y bordes;
-5. control dentro de los mini-tableros;
+5. líneas locales en desarrollo ponderadas por su relevancia global;
 6. peligro del destino inmediato;
-7. peligro del destino futuro.
+7. campo ganado, amenaza creada y peligro del destino futuro.
 
 La puntuación actual usa una convención fija:
 
@@ -133,9 +135,22 @@ La puntuación actual usa una convención fija:
 Separar los componentes permite usar `debug=True` para observar cuánto aporta
 cada uno sin cambiar el resultado final.
 
-También se corrigió un caso importante: mandar al rival a un campo cerrado no
-es neutral, porque el rival obtiene libertad para escoger cualquier campo
-abierto.
+También se corrigieron cuatro problemas estratégicos:
+
+- los campos ganados o empatados ya no conservan amenazas que no pueden jugarse;
+- una amenaza se cuenta en defensa y una bifurcación solo añade el bono por la
+  segunda amenaza, en lugar de repetir la señal completa;
+- poseer uno o dos campos en una línea global recibe valores distintos y no
+  lineales;
+- el destino futuro distingue jugadas que ganan el mismo campo pero envían al
+  rival a lugares diferentes.
+
+Los pesos actuales son `18, 6, 5, 6, 1, 8, 4`. Se seleccionaron después de
+partidas cruzadas contra la versión anterior, alternando cuál heurística usaba
+X y cuál usaba O. En la comparación final a profundidad 3, la evaluación nueva
+obtuvo 15 victorias, 2 derrotas y 3 empates en 20 partidas con aperturas legales
+variadas. Esta medición no demuestra juego perfecto, pero sí aporta evidencia
+más sólida que ajustar pesos a partir de una sola partida.
 
 ## 6. Minimax y poda alfa-beta
 
@@ -150,6 +165,11 @@ o refuerza los siguientes puntos:
 - límite revisado dentro de cada nodo;
 - restauración del tablero con `try/finally`;
 - estadísticas de nodos, profundidad, valor y tiempo.
+
+La raíz ya no sortea todos los valores que parecen empatados. Una rama podada
+puede devolver una cota igual al mejor valor conocido aunque su valor exacto
+sea peor. La versión actual conserva el primer movimiento óptimo y solo lo
+reemplaza ante una mejora estricta.
 
 ### Tabla de transposiciones
 
@@ -175,10 +195,14 @@ Cada movimiento simulado se encuentra dentro de `try/finally`, por lo que se
 deshace incluso cuando el tiempo termina a mitad de la recursión. La IA devuelve
 el movimiento de la última profundidad que sí terminó por completo.
 
+Los presupuestos son 15 segundos en apertura, 20 en medio juego y 27 en el
+final. Nunca exceden el límite recibido y dejan margen frente al máximo de 30
+segundos del torneo.
+
 ## 8. Pruebas
 
 Las pruebas básicas anteriores se sustituyeron como validación principal por
-una suite automatizada de exactamente 100 casos:
+una suite automatizada de exactamente 200 casos:
 
 | Grupo | Casos |
 |---|---:|
@@ -191,7 +215,11 @@ una suite automatizada de exactamente 100 casos:
 | Simetría de la heurística | 8 |
 | Victorias inmediatas de Minimax | 8 |
 | Integración, tiempo, memoria y estilo | 7 |
-| **Total** | **100** |
+| Líneas abiertas, amenazas y campos cerrados | 43 |
+| Relevancia global y progreso no lineal | 25 |
+| Destino libre y destino futuro | 25 |
+| Regresiones finales de Minimax, inicio, tiempo y paridad | 7 |
+| **Total** | **200** |
 
 Las 20 pruebas usadas durante el desarrollo también se conservaron como una
 segunda suite.

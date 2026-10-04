@@ -15,8 +15,13 @@ se conserva como evidencia.
 Para generar otro torneo desde la raíz:
 
 ```bash
-python -m src.torneo 10 1.0 --seed 42
+python -m src.torneo 10 1.0
 ```
+
+`comparacion_heuristicas_final.md` documenta las partidas cruzadas utilizadas
+para escoger los pesos de la función heurística final. A diferencia de una
+partida de la IA contra sí misma, esa comparación alterna qué evaluación usa X
+y cuál usa O.
 
 Esto ejecuta diez partidas IA vs IA, permite hasta un segundo por movimiento y
 usa una semilla para que los desempates sean reproducibles. El nuevo archivo se

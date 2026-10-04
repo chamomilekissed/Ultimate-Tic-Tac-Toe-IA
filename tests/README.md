@@ -4,7 +4,7 @@ Esta carpeta contiene dos suites.
 
 | Archivo | Casos | Propósito |
 |---|---:|---|
-| `test_gato_de_gatos.py` | 100 | Suite final: reglas, IA, integración y archivo de Spyder. |
+| `test_gato_de_gatos.py` | 200 | Suite final: reglas, IA, heurística, integración y archivo de Spyder. |
 | `test_regresion_historica.py` | 20 | Pruebas creadas durante el desarrollo y conservadas para compatibilidad. |
 
 ## Ejecutar las pruebas
@@ -23,7 +23,7 @@ Para ejecutar las dos suites juntas:
 python -m pytest tests -q
 ```
 
-## Distribución de los 100 casos finales
+## Distribución de los 200 casos finales
 
 | Grupo | Casos |
 |---|---:|
@@ -36,7 +36,15 @@ python -m pytest tests -q
 | Simetría de la heurística | 8 |
 | Victorias inmediatas de Minimax | 8 |
 | Validaciones, tiempo, caché, integración y estilo | 7 |
-| **Total** | **100** |
+| Líneas abiertas con una marca | 18 |
+| Amenazas en todas las líneas y para ambos jugadores | 16 |
+| Exclusión de amenazas en campos cerrados | 9 |
+| Relevancia global del control local | 9 |
+| Progreso no lineal en el meta-tablero | 16 |
+| Libertad al recibir un destino cerrado | 9 |
+| Victorias locales consideradas por el destino futuro | 16 |
+| Regresiones finales: raíz, inicio, tiempo, paridad y rango | 7 |
+| **Total** | **200** |
 
 ## Qué errores buscan
 
@@ -46,10 +54,14 @@ Las pruebas comprueban, entre otras cosas, que:
   cerrado;
 - una casilla envíe al siguiente jugador al campo correcto;
 - Minimax encuentre una victoria inmediata;
+- Minimax no confunda una cota alfa-beta con un empate exacto;
 - el límite de tiempo no deje movimientos simulados en el tablero;
+- las amenazas de campos cerrados no alteren la evaluación;
+- la primera pregunta distinga entre sistema y jugador externo;
+- los pesos respeten la estructura de líneas abiertas del meta-tablero;
 - la tabla de transposiciones respete valores exactos y cotas;
 - la versión modular y la de Spyder produzcan el mismo estado;
 - ningún archivo Python use `break`, `continue` o `pass`.
 
-GitHub Actions ejecuta automáticamente la compilación y los 100 casos finales
+GitHub Actions ejecuta automáticamente la compilación y los 200 casos finales
 cuando se abre o actualiza un pull request.

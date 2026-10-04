@@ -1,6 +1,6 @@
 """Pruebas históricas del proyecto.
 
-La suite final de 100 casos está en ``tests/test_gato_de_gatos.py``. Este
+La suite final de 200 casos está en ``tests/test_gato_de_gatos.py``. Este
 archivo se conserva porque contiene las pruebas usadas durante el desarrollo.
 
 Uso: ``python -m pytest tests/test_regresion_historica.py -v``.
@@ -256,7 +256,7 @@ class TestIntegracion:
         es_turno_x = True
         tablero_destino = None
         pasos = 0
-        max_pasos = 200  # Máximo para evitar loops infinitos
+        max_pasos = 81  # Una partida no puede colocar más de 81 marcas
         partida_terminada = False
         
         while pasos < max_pasos and not partida_terminada:
@@ -264,7 +264,10 @@ class TestIntegracion:
             movimiento = mm.mejor_movimiento(
                 tablero, 
                 tablero_destino, 
-                tiempo_limite=2
+                # Esta prueba verifica integración, no fuerza de juego. Un
+                # presupuesto pequeño mantiene la suite rápida mientras sigue
+                # recorriendo Minimax, la heurística y el control del tiempo.
+                tiempo_limite=0.01
             )
             
             if movimiento is None:

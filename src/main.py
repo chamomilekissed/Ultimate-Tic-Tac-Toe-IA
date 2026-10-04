@@ -131,23 +131,31 @@ def jugar_ia_vs_ia() -> None:
 
 def jugar_humano_vs_ia() -> None:
     """
-    Ejecuta un juego completo de Ultimate Tic-Tac-Toe humano vs IA.
+    Ejecuta la partida de torneo entre nuestro sistema y el jugador externo.
 
-    Pregunta con qué símbolo quiere jugar el humano. X siempre inicia: si
-    el humano elige X comienza la persona; si elige O comienza la IA.
+    Primero pregunta quién obtuvo el derecho de comenzar. Quien comienza usa
+    X internamente; esto conserva la alternancia de Minimax sin pedir una
+    segunda decisión que pudiera contradecir el resultado de la moneda.
     """
     tablero = tb.Tablero()
-    simbolo_humano = ui.solicitar_simbolo_jugador()
+    primer_jugador = ui.solicitar_primer_jugador()
 
-    if simbolo_humano == JUGADOR_X:
-        registrador = RegistradorPartida("Humano vs IA", origen_x="Humano", origen_o="IA")
+    if primer_jugador == "EXTERNO":
+        registrador = RegistradorPartida(
+            "Jugador externo vs sistema", origen_x="Jugador externo",
+            origen_o="Sistema"
+        )
         _ejecutar_partida(tablero, obtener_movimiento_valido, _movimiento_ia, registrador)
     else:
-        registrador = RegistradorPartida("Humano vs IA", origen_x="IA", origen_o="Humano")
+        registrador = RegistradorPartida(
+            "Sistema vs jugador externo", origen_x="Sistema",
+            origen_o="Jugador externo"
+        )
         _ejecutar_partida(tablero, _movimiento_ia, obtener_movimiento_valido, registrador)
 
 
-if __name__ == "__main__":
+def jugar_con_menu() -> None:
+    """Ofrece los tres modos de demostración; no es la entrada del torneo."""
     opcion = ui.solicitar_modo_juego()
 
     if opcion == "1":
@@ -156,3 +164,9 @@ if __name__ == "__main__":
         jugar_ia_vs_ia()
     elif opcion == "3":
         jugar_humano_vs_ia()
+
+
+if __name__ == "__main__":
+    # El archivo entregado inicia directamente en el modo requerido por el
+    # torneo, por lo que su primera pregunta es quién debe comenzar.
+    jugar_humano_vs_ia()
